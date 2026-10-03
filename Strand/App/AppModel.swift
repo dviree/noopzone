@@ -360,8 +360,8 @@ final class AppModel: ObservableObject {
         }
         // HR-zone haptic coaching watches the smoothed bpm.
         $bpm.sink { [weak self] hr in self?.coachZone(hr) }.store(in: &hrCancellables)
-        // Target-zone coaching follows its setting: picking a zone asks for notification permission at that
-        // moment (never mid-workout), and a change during a workout restarts or stops the coach. The value is
+        // Target-zone coaching follows its setting: a Zone training start asks for notification permission,
+        // and a change during the workout (the card's picker) restarts or stops the coach. The value is
         // passed through because @Published emits before the store is written.
         behavior.$targetZone.dropFirst().removeDuplicates().sink { [weak self] zone in
             guard let self else { return }
@@ -841,9 +841,16 @@ final class AppModel: ObservableObject {
     /// name; callers that don't pick a sport get the catalogue default "Other", parity with Android's
     /// `startWorkout(sport:)`). The active card on Live then shows elapsed time, live HR and strain
     /// building; End scores + saves it under this sport. Confirms with a single buzz. (#519)
-    func startWorkout(sport: String = WorkoutCatalog.defaultSportName) {
+    ///
+    /// `targetZone` makes it a Zone training workout (2, 3 or 4): the target-zone coach runs for this
+    /// session only. Every other start (the plain Start workout, Live, Shortcuts) passes 0, so a zone picked
+    /// for one session never carries into the next.
+    func startWorkout(sport: String = WorkoutCatalog.defaultSportName, targetZone: Int = 0) {
         guard activeWorkout == nil else { return }
         lastWorkout = nil
+        // Before `activeWorkout` is set, so the setting's sink sees no workout and leaves the coach alone;
+        // `syncTargetZoneCoach()` below starts it once the session exists.
+        behavior.targetZone = TargetZonePrefs.resolve(targetZone)
         let name = sport.trimmingCharacters(in: .whitespaces)
         let resolved = name.isEmpty ? WorkoutCatalog.defaultSportName : name
         let started = Date()
@@ -973,6 +980,7 @@ final class AppModel: ObservableObject {
         guard activeWorkout != nil else { return }
         activeWorkout = nil
         syncTargetZoneCoach()
+        behavior.targetZone = 0
         if activeWorkoutIsGps { gpsRecorder.stop() }
         activeWorkoutIsGps = false
         ActiveWorkoutPersistence.clear()
@@ -998,6 +1006,7 @@ final class AppModel: ObservableObject {
         guard let w = activeWorkout else { return }
         activeWorkout = nil
         syncTargetZoneCoach()
+        behavior.targetZone = 0
         let wasGps = activeWorkoutIsGps
         activeWorkoutIsGps = false
         // Drop the durable snapshot the instant the session ends , whether it saves below or is discarded

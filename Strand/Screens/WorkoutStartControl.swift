@@ -48,3 +48,39 @@ struct WorkoutStartControl: View {
         }
     }
 }
+
+/// Zone training: a workout that coaches toward one heart-rate zone. Tap it, pick the zone (2, 3 or 4,
+/// shown with the user's own bpm interval) and the session starts at once with the target-zone coach on:
+/// the strap taps twice below the zone, three times above it and once back in, mirrored as notifications.
+/// No activity step — the session is recorded under the catalogue default sport.
+///
+/// The live view is presented from the zone sheet's `onDismiss`, once that sheet has fully gone, so the
+/// two presentations never overlap. The control stays in the hierarchy (disabled) while a workout is
+/// active so its live-workout sheet keeps its host.
+struct ZoneTrainingStartControl: View {
+    @EnvironmentObject var model: AppModel
+    @State private var showZonePicker = false
+    @State private var startedZone: Int?
+    @State private var showLiveWorkout = false
+
+    var body: some View {
+        NoopButton("Zone training", systemImage: "heart.circle", kind: .secondary, fullWidth: true) {
+            startedZone = nil
+            showZonePicker = true
+        }
+        .disabled(model.activeWorkout != nil)
+        .accessibilityLabel(Text("Start a zone training workout"))
+        .sheet(isPresented: $showZonePicker, onDismiss: {
+            if startedZone != nil, model.activeWorkout != nil { showLiveWorkout = true }
+        }) {
+            ZoneTrainingSheet(zoneSet: model.profile.hrZoneSet) { zone in
+                model.startWorkout(targetZone: zone)
+                startedZone = zone
+            }
+        }
+        .sheet(isPresented: $showLiveWorkout) {
+            LiveWorkoutView(onClose: { showLiveWorkout = false })
+                .environmentObject(model.live)
+        }
+    }
+}

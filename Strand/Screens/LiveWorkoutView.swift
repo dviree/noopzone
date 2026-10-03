@@ -49,8 +49,8 @@ struct LiveWorkoutView: View {
                     AnyView(header),
                     AnyView(timeBlock),
                     AnyView(heartRateBlock),
-                    // Target-zone coaching (Off / Zone 2–4): a leaf observing the coach itself, so its 1 Hz
-                    // time-in-zone tick re-renders this card, not the hero above it.
+                    // Zone training: a leaf observing the coach itself, so its 1 Hz time-in-zone tick
+                    // re-renders this card, not the hero above it. Renders nothing in an ordinary workout.
                     AnyView(TargetZoneCoachCard(coach: model.targetZoneCoach, behavior: model.behavior,
                                                 bpm: model.bpm)),
                     AnyView(effortGauge),
@@ -451,7 +451,9 @@ struct LiveWorkoutView: View {
         ActiveWorkoutClock.clock(Int(seconds))
     }
 
-    private static func zoneName(_ zone: Int) -> String {
+    /// The short name of a zone ("Fat burn", "Aerobic", …). Internal so the Zone training picker labels
+    /// zones with the same words as this screen.
+    static func zoneName(_ zone: Int) -> String {
         switch zone {
         case 1: return String(localized: "Recovery")
         case 2: return String(localized: "Fat burn")
@@ -545,8 +547,8 @@ private struct SensorRowIfPresent: View {
     }
 }
 
-/// Target-zone coaching on the active-workout screen: pick Off / Zone 2 / Zone 3 / Zone 4, then see the live
-/// bpm, the zone's bpm interval, whether to go harder or ease off, and the time spent in the zone.
+/// Zone training on the active-workout screen: the live bpm, the zone's bpm interval, whether to go harder
+/// or ease off, and the time spent in the zone, with a picker to switch zone (or turn coaching Off) mid-way.
 ///
 /// Every number here comes from one place each, so the card cannot disagree with the rest of the screen:
 /// the bpm is the same smoothed `AppModel.bpm` the hero shows, the interval is the coach's config, which
@@ -563,8 +565,13 @@ private struct TargetZoneCoachCard: View {
     let bpm: Int?
 
     var body: some View {
+        // Only a Zone training workout carries this card; picking Off on it ends the coaching and removes it.
+        if behavior.targetZone != 0 || coach.isActive { card }
+    }
+
+    private var card: some View {
         let tint = statusTint
-        NoopCard(padding: NoopMetrics.cardInnerPadding, tint: coach.isActive ? tint : StrandPalette.effortColor) {
+        return NoopCard(padding: NoopMetrics.cardInnerPadding, tint: coach.isActive ? tint : StrandPalette.effortColor) {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 HStack {
                     Text("TARGET ZONE")

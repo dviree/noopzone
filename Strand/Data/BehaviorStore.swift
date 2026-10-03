@@ -21,13 +21,13 @@ final class BehaviorStore: ObservableObject {
 
     // MARK: HR-zone haptic coaching (during a live session)
     @Published var zoneCoaching: Bool { didSet { d.set(zoneCoaching, forKey: K.zoneCoaching) } }
-    /// Target-zone coaching during a recorded workout: the zone (2, 3 or 4) the wearer wants to stay in, or
-    /// 0 = off. Default OFF — the strap and phone only coach toward a zone the wearer explicitly picked.
-    /// Read through `TargetZonePrefs.resolve` so a stray stored value can never select a zone the coach
-    /// does not offer.
+    /// The zone (2, 3 or 4) the CURRENT Zone training workout coaches toward, or 0 = off. Set by
+    /// `AppModel.startWorkout(sport:targetZone:)`, changeable from the workout screen's card, and cleared when
+    /// the workout ends; persisted only so a workout rehydrated after an OS kill keeps coaching. Read through
+    /// `TargetZonePrefs.resolve` so a stray stored value can never select a zone the coach does not offer.
     @Published var targetZone: Int { didSet { d.set(targetZone, forKey: K.targetZone) } }
-    /// Mirror each target-zone cue as an iPhone notification (replaced in place, never stacked). Default ON:
-    /// it only matters once `targetZone` is on, which is itself opt-in.
+    /// Mirror each Zone training cue as an iPhone notification (replaced in place, never stacked). Default ON:
+    /// it only matters during a Zone training workout, which is itself opt-in.
     @Published var targetZoneNotifications: Bool {
         didSet { d.set(targetZoneNotifications, forKey: K.targetZoneNotifications) }
     }
