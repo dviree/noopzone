@@ -3,8 +3,10 @@
 
 NOOP's own tones, synthesised here so the assets have a known origin and can be rebuilt byte-for-byte:
 
-  zone-increase.wav  below the zone  -> two short tones stepping UP   (pairs with the strap's 2 light taps)
-  zone-decrease.wav  above the zone  -> three short tones stepping DOWN (pairs with the 3 heavier taps)
+  zone-increase.wav  below the zone  -> two short tones stepping UP and swelling (a crescendo;
+                                        pairs with the strap's 2 light taps)
+  zone-decrease.wav  above the zone  -> three short tones stepping DOWN and fading (a decrescendo;
+                                        pairs with the 3 heavier taps)
   zone-in.wav        back in the zone -> one soft chime                 (pairs with the single tap)
 
 The direction of the pitch says what to do with the effort, so the sound is readable without looking.
@@ -54,23 +56,26 @@ def silence(seconds: float) -> list[float]:
     return [0.0] * int(RATE * seconds)
 
 
-def sequence(freqs: list[float], length: float, gap: float) -> list[float]:
+def sequence(freqs: list[float], length: float, gap: float, gains: list[float] | None = None) -> list[float]:
     samples: list[float] = []
     for k, f in enumerate(freqs):
         if k:
             samples += silence(gap)
-        samples += tone(f, length)
+        g = gains[k] if gains else 1.0
+        samples += [v * g for v in tone(f, length)]
     return samples
 
 
-# Up a fifth: E5 -> B5.
+# Up a fifth: E5 -> B5, growing louder as it rises (a crescendo), the mirror of the decrease sound.
 INCREASE_HZ = [659.25, 987.77]
-# Down a triad: B5 -> G5 -> D5.
+INCREASE_GAINS = [0.45, 1.0]
+# Down a triad: B5 -> G5 -> D5, fading as it falls (a decrescendo), so "less" is said twice over.
 DECREASE_HZ = [987.77, 783.99, 587.33]
+DECREASE_GAINS = [1.0, 0.6, 0.32]
 
 SOUNDS = {
-    "zone-increase.wav": lambda: sequence(INCREASE_HZ, 0.14, 0.07),
-    "zone-decrease.wav": lambda: sequence(DECREASE_HZ, 0.14, 0.07),
+    "zone-increase.wav": lambda: sequence(INCREASE_HZ, 0.14, 0.07, INCREASE_GAINS),
+    "zone-decrease.wav": lambda: sequence(DECREASE_HZ, 0.14, 0.07, DECREASE_GAINS),
     # A single soft G5 chime with a gentle decay.
     "zone-in.wav": lambda: tone(783.99, 0.45, overtone=0.25, decay=5.0),
 }

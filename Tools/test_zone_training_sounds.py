@@ -43,6 +43,13 @@ class ZoneTrainingSoundsTest(unittest.TestCase):
         self.assertEqual(len(zts.DECREASE_HZ), 3)
         self.assertEqual(zts.INCREASE_HZ, sorted(zts.INCREASE_HZ))
         self.assertEqual(zts.DECREASE_HZ, sorted(zts.DECREASE_HZ, reverse=True))
+        # Increase is also a crescendo, decrease a decrescendo: loudness moves the way the pitch does.
+        self.assertEqual(len(zts.INCREASE_GAINS), len(zts.INCREASE_HZ))
+        self.assertEqual(zts.INCREASE_GAINS, sorted(zts.INCREASE_GAINS))
+        self.assertLess(zts.INCREASE_GAINS[0], zts.INCREASE_GAINS[-1])
+        self.assertEqual(len(zts.DECREASE_GAINS), len(zts.DECREASE_HZ))
+        self.assertEqual(zts.DECREASE_GAINS, sorted(zts.DECREASE_GAINS, reverse=True))
+        self.assertGreater(zts.DECREASE_GAINS[0], zts.DECREASE_GAINS[-1])
 
 if __name__ == "__main__":
     unittest.main()
