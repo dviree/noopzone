@@ -9,36 +9,20 @@ import WhoopProtocol
 /// StrandAnalytics.
 final class TargetZoneCoachRunnerTests: XCTestCase {
 
-    private let now = Date(timeIntervalSince1970: 1_800_000_000)
-
     // MARK: - Reading gate
 
-    func testAFreshReadingOnABondedWornStrapIsCoached() {
-        XCTAssertEqual(TargetZoneCues.coachableReading(bpm: 128, lastSampleAt: now.addingTimeInterval(-1), now: now,
-                                                       bonded: true, worn: true, paused: false), 128)
+    func testASmoothedBpmOnAWornStrapIsCoached() {
+        XCTAssertEqual(TargetZoneCues.coachableReading(bpm: 128, worn: true, paused: false), 128)
     }
 
     func testNoBpmIsNoReading() {
-        XCTAssertNil(TargetZoneCues.coachableReading(bpm: nil, lastSampleAt: now, now: now,
-                                                     bonded: true, worn: true, paused: false))
+        // `AppModel.bpm` goes nil when the live heart rate is stale or gone; that is the freshness authority.
+        XCTAssertNil(TargetZoneCues.coachableReading(bpm: nil, worn: true, paused: false))
     }
 
-    func testAStaleSampleIsNoReading() {
-        let stale = now.addingTimeInterval(-(TargetZoneCues.staleAfterSec + 1))
-        XCTAssertNil(TargetZoneCues.coachableReading(bpm: 128, lastSampleAt: stale, now: now,
-                                                     bonded: true, worn: true, paused: false))
-        XCTAssertNil(TargetZoneCues.coachableReading(bpm: 128, lastSampleAt: nil, now: now,
-                                                     bonded: true, worn: true, paused: false))
-    }
-
-    func testUnbondedOffWristOrPausedIsNoReading() {
-        let fresh = now.addingTimeInterval(-1)
-        XCTAssertNil(TargetZoneCues.coachableReading(bpm: 128, lastSampleAt: fresh, now: now,
-                                                     bonded: false, worn: true, paused: false))
-        XCTAssertNil(TargetZoneCues.coachableReading(bpm: 128, lastSampleAt: fresh, now: now,
-                                                     bonded: true, worn: false, paused: false))
-        XCTAssertNil(TargetZoneCues.coachableReading(bpm: 128, lastSampleAt: fresh, now: now,
-                                                     bonded: true, worn: true, paused: true))
+    func testOffWristOrPausedIsNoReading() {
+        XCTAssertNil(TargetZoneCues.coachableReading(bpm: 128, worn: false, paused: false))
+        XCTAssertNil(TargetZoneCues.coachableReading(bpm: 128, worn: true, paused: true))
     }
 
     // MARK: - Wrist patterns

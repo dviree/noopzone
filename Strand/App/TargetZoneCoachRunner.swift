@@ -10,9 +10,9 @@ import WhoopProtocol
 // the phone notification. It runs only while a recorded workout is active AND the wearer picked a target
 // zone, and is owned by `AppModel`, which starts and stops it with the workout.
 //
-// Inputs, honestly gated: the smoothed `AppModel.bpm`, but only while a raw sample arrived within
-// `staleAfterSec`, the strap is bonded and worn, and the workout is not paused. Anything else is fed to the
-// engine as nil, which never coaches.
+// Inputs, honestly gated: the smoothed `AppModel.bpm` (nil once the live heart rate is stale or gone), but
+// only while the strap is worn and the workout is not paused. Anything else is fed to the engine as nil,
+// which never coaches.
 //
 // Wrist vocabulary reuses `LiveSessionHaptics` so the feel matches Live Sessions:
 //   • below the zone → `push`    (two light taps)
@@ -38,15 +38,16 @@ enum TargetZonePrefs {
 
 /// The pure halves of the runner: which reading may be coached on, and how each feedback feels on the wrist.
 enum TargetZoneCues {
-    /// A sample older than this is not coached on (the strap went quiet, the wearer is between readings).
-    static let staleAfterSec: TimeInterval = 8
-
-    /// The reading the engine may coach on, or nil: a current smoothed bpm, a raw sample within
-    /// `staleAfterSec`, a bonded strap on the wrist, and a workout that is not paused.
-    static func coachableReading(bpm: Int?, lastSampleAt: Date?, now: Date,
-                                 bonded: Bool, worn: Bool, paused: Bool) -> Int? {
-        guard let bpm, bonded, worn, !paused,
-              let at = lastSampleAt, now.timeIntervalSince(at) <= staleAfterSec else { return nil }
+    /// The reading the engine may coach on, or nil: the smoothed `AppModel.bpm` while the strap is on the
+    /// wrist and the workout is not paused.
+    ///
+    /// Freshness is deliberately NOT judged here. `AppModel.bpm` already goes nil when the live heart rate
+    /// does (`LiveState`'s 10 s silence timer, a disconnect, wrist-off), and that is the one place the app
+    /// decides a reading is current. An earlier version timed its own freshness off `live.$heartRate`
+    /// emissions, but the WHOOP path only writes `heartRate` when the value CHANGES, so a steady heart rate
+    /// read as "no reading" after a few seconds, every debounce restarted, and no cue was ever sent.
+    static func coachableReading(bpm: Int?, worn: Bool, paused: Bool) -> Int? {
+        guard let bpm, worn, !paused else { return nil }
         return bpm
     }
 
@@ -93,7 +94,6 @@ final class TargetZoneCoachRunner: ObservableObject {
     private var timer: Timer?
     private var sinks = Set<AnyCancellable>()
     private weak var model: AppModel?
-    private var lastSampleAt: Date?
     /// When the in-flight pulse walk finishes; a cue arriving before then skips the wrist (never queued).
     private var hapticWalkUntil = Date.distantPast
 
@@ -112,16 +112,15 @@ final class TargetZoneCoachRunner: ObservableObject {
         self.zone = zone
         self.config = config
         engine = TargetZoneCoach(config: config)
-        // A sample that predates the session must not count as fresh.
-        lastSampleAt = nil
+        model.live.append(log: AppModel.stamped(
+            "Zone training: coaching Zone \(zone) (\(Int(config.lowerBpm))-\(Int(config.upperBpm)) bpm)"))
 
-        model.live.$heartRate
-            .sink { [weak self] hr in
-                guard let self, hr != nil else { return }
-                self.lastSampleAt = Date()
-                // Pocket-the-phone survival, as in LiveSessionRunner: a suspended app stops firing the
-                // Timer, but CoreBluetooth keeps delivering HR notifies, so tick on arrival too. Deferred to
-                // the next main-actor turn so `AppModel.bpm` has folded this sample in first.
+        // Pocket-the-phone survival, as in LiveSessionRunner: a suspended app stops firing the Timer, but
+        // CoreBluetooth keeps delivering packets, so tick on each one too. R-R arrives with every packet even
+        // when the heart rate itself does not change (the WHOOP path only writes `heartRate` on a change).
+        // Deferred to the next main-actor turn so `AppModel.bpm` has folded the sample in first.
+        Publishers.Merge(model.live.$heartRate.map { _ in () }, model.live.$rr.map { _ in () })
+            .sink { [weak self] _ in
                 Task { @MainActor [weak self] in self?.tick() }
             }
             .store(in: &sinks)
@@ -140,7 +139,6 @@ final class TargetZoneCoachRunner: ObservableObject {
         sinks.removeAll()
         engine = nil
         model = nil
-        lastSampleAt = nil
         hapticWalkUntil = .distantPast
         if zone != nil { zone = nil }
         if config != nil { config = nil }
@@ -154,44 +152,56 @@ final class TargetZoneCoachRunner: ObservableObject {
     private func tick() {
         guard let model, var engine, let zone else { return }
         let now = Date()
-        let out = engine.update(now: Int(now.timeIntervalSince1970), bpm: TargetZoneCues.coachableReading(
-            bpm: model.bpm, lastSampleAt: lastSampleAt, now: now,
-            bonded: model.live.bonded, worn: model.live.worn,
-            paused: model.activeWorkout?.isPaused ?? true))
+        let reading = TargetZoneCues.coachableReading(
+            bpm: model.bpm, worn: model.live.worn, paused: model.activeWorkout?.isPaused ?? true)
+        let out = engine.update(now: Int(now.timeIntervalSince1970), bpm: reading)
         self.engine = engine
 
         // Publish only what changed: this runs every second and on every sample.
         if state != out.state { state = out.state }
         let secs = Int(out.inZoneSeconds)
         if inZoneSeconds != secs { inZoneSeconds = secs }
-        let reading = !out.noReading
-        if hasReading != reading { hasReading = reading }
+        let hasNow = !out.noReading
+        if hasReading != hasNow { hasReading = hasNow }
 
-        if let feedback = out.feedback {
-            deliver(feedback, zone: zone, model: model, notify: model.behavior.targetZoneNotifications)
+        if let feedback = out.feedback, let bpm = reading {
+            deliver(feedback, zone: zone, bpm: bpm, model: model, notify: model.behavior.targetZoneNotifications)
         }
     }
 
     // MARK: - Feedback → wrist + phone
 
-    private func deliver(_ feedback: TargetZoneCoach.Feedback, zone: Int, model: AppModel, notify: Bool) {
+    private func deliver(_ feedback: TargetZoneCoach.Feedback, zone: Int, bpm: Int, model: AppModel,
+                         notify: Bool) {
         // #haptics (#1115): a workout cue, gated like the workout start/end buzz. Only the wrist is gated;
         // the notification follows its own toggle.
-        if HapticPrefs.enabled(HapticPrefs.workout) {
-            walk(TargetZoneCues.pulses(for: feedback), model: model)
-        }
+        let wristOn = HapticPrefs.enabled(HapticPrefs.workout)
+        let walked = wristOn ? walk(TargetZoneCues.pulses(for: feedback), model: model) : false
         if notify {
             TargetZoneNotifier.post(feedback, zone: zone)
         }
+        // Rare-event evidence, always on: one line per cue (a few per workout), saying only what this side
+        // did — a buzz REQUESTED is not a buzz felt, and `send` logs its own refusal if the link is down.
+        let what: String
+        switch feedback {
+        case .below: what = "below"
+        case .enteredZone: what = "entered"
+        case .above: what = "above"
+        }
+        let wrist = !wristOn ? "wrist cue off (workout haptics disabled)"
+            : walked ? "wrist cue requested" : "wrist cue skipped (previous one still playing)"
+        model.live.append(log: AppModel.stamped(
+            "Zone training: \(what) Zone \(zone) at \(bpm) bpm; \(wrist); notification \(notify ? "on" : "off")"))
     }
 
     /// Walk a pulse list out through the strap the way `LiveSessionRunner.fire` does: each pulse is the
     /// existing `AppModel.buzz(loops:)` (bond-gated by the BLE layer), weighted by `isLong` (long = 2 loops,
     /// short = 1). Drop-tolerant: a walk still in flight means this one is skipped, because overlapping
     /// walks land on the wrist as one mush.
-    private func walk(_ pulses: [HapticClock.Pulse], model: AppModel) {
+    @discardableResult
+    private func walk(_ pulses: [HapticClock.Pulse], model: AppModel) -> Bool {
         let nowDate = Date()
-        guard nowDate >= hapticWalkUntil, !pulses.isEmpty else { return }
+        guard nowDate >= hapticWalkUntil, !pulses.isEmpty else { return false }
         var offsetMs = 0
         for pulse in pulses {
             let loops: UInt8 = pulse.isLong ? 2 : 1
@@ -201,5 +211,6 @@ final class TargetZoneCoachRunner: ObservableObject {
             offsetMs += pulse.durationMs + pulse.gapMs
         }
         hapticWalkUntil = nowDate.addingTimeInterval(Double(offsetMs) / 1000)
+        return true
     }
 }
