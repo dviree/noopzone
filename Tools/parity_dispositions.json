@@ -291,6 +291,102 @@
       "identity_sha256": "28fa51ec52e1a418a0c8bd500cceb13c529cf8dc7e8bbe290003fe97602e6dff",
       "platform": "kotlin",
       "rationale": "Formats the reading's day for the Settings caption of the Health Connect weight sync. Apple platforms have no Health Connect, so the opt-in 'Use weight from Health Connect' profile sync exists only on Android and there is no Swift counterpart to pair with, now or later."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-file",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift",
+      "identity_sha256": "2e5e7a46e026e6c77fdb8a89340a2930e986c658c717e426af40452bb4742a4e",
+      "platform": "swift",
+      "rationale": "The target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultCooldownSec",
+      "identity_sha256": "20003cf4bf29dc45ceae233045438c7e9775baad76092b5f9666d2debc7e428e",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultDebounceSec",
+      "identity_sha256": "11abb83f522e6c94d7e915c872d6da82b84ad8c5225634315574475a437a2be8",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultHysteresisBpm",
+      "identity_sha256": "4b12d8fc410c3ca5e16d8980b8072037dfd70a41d8e646917c6afa2773d3d01c",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultMaxAccrualDtSec",
+      "identity_sha256": "0124104e8711e0c981316c5b9ec456530632889ccb0865b98bfce0db0b121813",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultMinPlausibleBpm",
+      "identity_sha256": "7bf4a8d1ca870382e6cef9133f55785346191e1142ce416e5bb5192bf0eb8114",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultReminderSec",
+      "identity_sha256": "2c7ce2907c45ef2b3e4f7c330376b255e4bf25aa2fe94b109eb1817c38e44cc8",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::forZone/2#1",
+      "identity_sha256": "d0dfc011b53eee4500a350abfa47e0426e1f098d87a10aad9661cbc3c54fb343",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::classify/1#1",
+      "identity_sha256": "080600c5382dbcf87dcde8232f659930c5257ced3535068a56293d2fa9d698fa",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::update/2#1",
+      "identity_sha256": "123f0bc63be2c43e7c5e8a8df658b67d04218a05b538df3a846f03c5c2e7e24f",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::decideFeedback/1#1",
+      "identity_sha256": "fd06b5a96e7294eb9e23c3072240b2ba3991b73d4309e1193e30954f45755a99",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::emit/2#1",
+      "identity_sha256": "663a160fbdc733e42d79915391eaabf8d7bb6fa788db4f2ef15ec3b4c96c6fb3",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
     }
   ]
 }

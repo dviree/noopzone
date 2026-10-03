@@ -215,11 +215,21 @@ struct AutomationsView: View {
     private var coachingCard: some View {
         Section2(icon: "bolt.heart.fill", title: String(localized: "Haptic coaching"),
                  blurb: String(localized: "Train by feel. The strap buzzes so you don't have to watch a screen."),
-                 active: behavior.zoneCoaching || behavior.stressCheckIn) {
+                 active: behavior.zoneCoaching || behavior.targetZone != 0 || behavior.stressCheckIn) {
             VStack(spacing: 0) {
                 ToggleRow(label: String(localized: "HR-zone coaching"),
                           help: String(localized: "Buzz when you hit your top zone (ease off) and again when you recover. Uses your max HR from Settings."),
                           isOn: $behavior.zoneCoaching)
+                rowDivider
+                // Target-zone coaching: the zone a recorded workout coaches toward. The same value is
+                // pickable on the live workout screen; both bind to `behavior.targetZone`.
+                targetZoneRow
+                if behavior.targetZone != 0 {
+                    rowDivider
+                    ToggleRow(label: String(localized: "Phone notifications"),
+                              help: String(localized: "Mirror each target-zone cue as a notification on this device. A new one replaces the last."),
+                              isOn: $behavior.targetZoneNotifications)
+                }
                 rowDivider
                 // v5 L3 closed-loop check-in (master + sub toggles). Default OFF, manual-first. The keys
                 // mirror BiofeedbackPrefs, which the central detector (AppModel.evaluateStress) reads.
@@ -242,6 +252,21 @@ struct AutomationsView: View {
                 }
             }
         }
+    }
+
+    /// Off / Zone 2 / Zone 3 / Zone 4 for target-zone coaching during a recorded workout.
+    private var targetZoneRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Target-zone coaching").font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+            Text("During a recorded workout, the strap taps twice when you drop below the zone, three times when you go above it, and once when you're back in. Uses your heart-rate zones from Settings.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+            SegmentedPillControl([0] + TargetZonePrefs.selectableZones, selection: $behavior.targetZone,
+                                 fillsAvailableWidth: true) { TargetZonePrefs.label($0) }
+                .accessibilityLabel(Text("Target-zone coaching"))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 
     // MARK: - Inactivity reminder (#419)

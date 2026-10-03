@@ -49,6 +49,10 @@ struct LiveWorkoutView: View {
                     AnyView(header),
                     AnyView(timeBlock),
                     AnyView(heartRateBlock),
+                    // Target-zone coaching (Off / Zone 2–4): a leaf observing the coach itself, so its 1 Hz
+                    // time-in-zone tick re-renders this card, not the hero above it.
+                    AnyView(TargetZoneCoachCard(coach: model.targetZoneCoach, behavior: model.behavior,
+                                                bpm: model.bpm)),
                     AnyView(effortGauge),
                     AnyView(zoneSection),
                     AnyView(statsGrid),
@@ -490,8 +494,9 @@ private extension View {
 /// no longer observes `LiveState`), so an incoming sensor / R-R packet re-renders only this row, not the
 /// HR hero / effort gauge / zone rail above. The gate, layout and `staggeredAppear(index: 5)` are
 /// preserved verbatim (index bumped to 7 — 6 after the glanceable layout split TIME / HR / Effort / zone
-/// into separate stagger slots, then 7 after the live distance/pace card #1195 took the slot before it),
-/// so the rendered output matches the previous inline code.
+/// into separate stagger slots, then 7 after the live distance/pace card #1195 took the slot before it,
+/// then 8 after the target-zone coaching card took a slot under the heart rate), so the rendered output
+/// matches the previous inline code.
 private struct SensorRowIfPresent: View {
     @EnvironmentObject private var live: LiveState
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -520,7 +525,7 @@ private struct SensorRowIfPresent: View {
                     }
                 }
             }
-            .staggeredAppear(index: 7)
+            .staggeredAppear(index: 8)
         }
     }
 
@@ -537,6 +542,107 @@ private struct SensorRowIfPresent: View {
                 .lineLimit(1).minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Target-zone coaching on the active-workout screen: pick Off / Zone 2 / Zone 3 / Zone 4, then see the live
+/// bpm, the zone's bpm interval, whether to go harder or ease off, and the time spent in the zone.
+///
+/// Every number here comes from one place each, so the card cannot disagree with the rest of the screen:
+/// the bpm is the same smoothed `AppModel.bpm` the hero shows, the interval is the coach's config, which
+/// is built from the same `HRZoneSet` band the zone rail prints, and the status is the coach's committed
+/// state — the one that drives the strap — never re-derived from the bpm here.
+///
+/// The status is the coach's HELD verdict, not the instantaneous zone, and the two can differ by design at
+/// an edge: within the hysteresis margin (a reading 1–3 bpm under Zone 2) the card still reads ZONE 2 while
+/// the rail shows Zone 1. That is the point of the margin — the strap is not told to speed up for a reading
+/// that is hovering on the line — and the card's job is to say what the strap is saying.
+private struct TargetZoneCoachCard: View {
+    @ObservedObject var coach: TargetZoneCoachRunner
+    @ObservedObject var behavior: BehaviorStore
+    let bpm: Int?
+
+    var body: some View {
+        let tint = statusTint
+        NoopCard(padding: NoopMetrics.cardInnerPadding, tint: coach.isActive ? tint : StrandPalette.effortColor) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack {
+                    Text("TARGET ZONE")
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                    Spacer()
+                    if coach.isActive {
+                        Text(statusLabel)
+                            .font(StrandFont.captionNumber)
+                            .foregroundStyle(tint)
+                            .padding(.horizontal, NoopMetrics.space2)
+                            .padding(.vertical, NoopMetrics.space1)
+                            .background(tint.opacity(0.12), in: Capsule())
+                            .accessibilityLabel(Text(statusLabel))
+                    }
+                }
+                SegmentedPillControl([0] + TargetZonePrefs.selectableZones, selection: $behavior.targetZone,
+                                     fillsAvailableWidth: true) { TargetZonePrefs.label($0) }
+                    .accessibilityLabel(Text("Target-zone coaching"))
+                if let zone = coach.zone, let config = coach.config {
+                    HStack(spacing: 0) {
+                        stat(String(localized: "BPM"), bpm.map { "\($0)" } ?? "—", tint: tint)
+                        statDivider
+                        stat(String(localized: "Zone \(zone)").uppercased(),
+                             "\(Int(config.lowerBpm))-\(Int(config.upperBpm))",
+                             tint: StrandPalette.hrZoneColor(zone))
+                        statDivider
+                        stat(String(localized: "IN ZONE"), ActiveWorkoutClock.clock(coach.inZoneSeconds),
+                             tint: StrandPalette.textPrimary)
+                    }
+                } else if behavior.targetZone != 0 {
+                    Text("Set a max heart rate in Settings to coach toward a zone.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Pick a zone and the strap taps when you drift out of it, so you don't have to watch the screen.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    /// The coach's committed state, in the words the wrist cue means.
+    private var statusLabel: String {
+        guard coach.hasReading else { return String(localized: "No heart rate") }
+        switch coach.state {
+        case .below: return String(localized: "Increase")
+        case .inZone: return coach.zone.map { String(localized: "Zone \($0)").uppercased() } ?? ""
+        case .above: return String(localized: "Decrease")
+        case .none: return String(localized: "Checking")
+        }
+    }
+
+    private var statusTint: Color {
+        guard coach.hasReading, let state = coach.state else { return StrandPalette.textSecondary }
+        switch state {
+        case .below: return StrandPalette.statusWarning
+        case .inZone: return coach.zone.map { StrandPalette.hrZoneColor($0) } ?? StrandPalette.textSecondary
+        case .above: return StrandPalette.statusCritical
+        }
+    }
+
+    private func stat(_ title: String, _ value: String, tint: Color) -> some View {
+        VStack(spacing: NoopMetrics.space1) {
+            Text(title)
+                .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textSecondary)
+            Text(value)
+                .font(StrandFont.number(26)).monospacedDigit()
+                .foregroundStyle(tint)
+                .lineLimit(1).minimumScaleFactor(0.6)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var statDivider: some View {
+        Rectangle().fill(StrandPalette.hairline).frame(width: 1, height: 48)
     }
 }
 
