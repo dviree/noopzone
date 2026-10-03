@@ -459,6 +459,11 @@ private struct iOSRootView: View {
     /// Starts false so a cold-launch external action can't race this view's onAppear decision about the
     /// automatic What's New sheet. It becomes true only when no sheet is due or its dismissal completes.
     @State private var automaticLaunchSheetResolved = false
+    /// One-time "Import from Apple Health?" offer. Set the moment the prompt is shown, so it appears once per
+    /// install whichever button is pressed (or if the app is closed with it up).
+    @AppStorage("noop.appleHealthImportPromptSeen") private var appleHealthPromptSeen = false
+    @State private var showAppleHealthPrompt = false
+    @EnvironmentObject private var router: NavRouter
 
     var body: some View {
         #if DEBUG
@@ -521,6 +526,7 @@ private struct iOSRootView: View {
         // accepted (onAppear already fired before acceptance), so What's New shows right after.
         .onAppear {
             showWhatsNewIfDue()
+            offerAppleHealthImportIfDue()
             // Seed the current What's New into the Updates inbox (idempotent per version) so the bell
             // collects it even if the user dismisses the auto sheet.
             UpdateStore.shared.seedWhatsNewIfNeeded()
@@ -536,6 +542,33 @@ private struct iOSRootView: View {
             }
         }
         .onChange(of: acceptedTerms) { _, _ in showWhatsNewIfDue() }
+        // First-launch Apple Health offer: only once every gate above has cleared (Terms, onboarding, any
+        // What's New sheet), so it never stacks on top of them.
+        .onChange(of: automaticLaunchSheetResolved) { _, _ in offerAppleHealthImportIfDue() }
+        .onChange(of: onboarded) { _, _ in offerAppleHealthImportIfDue() }
+        .alert("Import from Apple Health?", isPresented: $showAppleHealthPrompt) {
+            Button("Import") { router.openAppleHealth() }
+            Button("Not now", role: .cancel) { }
+        } message: {
+            Text("Bring in your history from Apple Health (sleep, heart rate, HRV, workouts and more) so NOOP has data from day one. You can also do it later under More › Apple Health.")
+        }
+    }
+
+    /// Show the one-time Apple Health import offer when it is due: never seen, and nothing else is in front
+    /// of the shell. A short delay lets the onboarding / Terms overlay finish fading first; the gates are
+    /// re-checked after it, since any of them can change in between.
+    private func offerAppleHealthImportIfDue() {
+        guard !demoBypass, !appleHealthPromptSeen else { return }
+        let due = {
+            !appleHealthPromptSeen && onboarded && acceptedTerms == Terms.currentVersion
+                && automaticLaunchSheetResolved && !showWhatsNew
+        }
+        guard due() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            guard due() else { return }
+            appleHealthPromptSeen = true
+            showAppleHealthPrompt = true
+        }
     }
 
     /// DEBUG: launched with --demo-seed, skip the first-run gates (onboarding / terms / What's New) so the

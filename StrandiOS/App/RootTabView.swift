@@ -207,7 +207,7 @@ struct RootTabView: View {
             case .devices:
                 showDevices = true
                 router.requestedDestination = nil
-            case .insightsHub, .labBook, .fusedRecord, .rhythm, .alarms:
+            case .insightsHub, .labBook, .fusedRecord, .rhythm, .alarms, .appleHealth:
                 routedPillar = dest
                 router.requestedDestination = nil
             case .coach:
@@ -340,6 +340,7 @@ struct RootTabView: View {
                 // it ever reaches the host.
                 case .coach: CoachView()
                 case .alarms: SmartAlarmView()
+                case .appleHealth: AppleHealthView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a
