@@ -38,8 +38,8 @@ class ZoneTrainingSoundsTest(unittest.TestCase):
                 self.assertLess(w.getnframes() / w.getframerate(), 30)  # iOS notification sound limit
 
     def test_pitch_direction_matches_the_instruction(self):
-        # Two tones up for "more" and three tones down for "less", matching the strap's 2 / 3 taps.
-        self.assertEqual(len(zts.INCREASE_HZ), 2)
+        # Four tones up for "more" and three tones down for "less".
+        self.assertEqual(len(zts.INCREASE_HZ), 4)
         self.assertEqual(len(zts.DECREASE_HZ), 3)
         self.assertEqual(zts.INCREASE_HZ, sorted(zts.INCREASE_HZ))
         self.assertEqual(zts.DECREASE_HZ, sorted(zts.DECREASE_HZ, reverse=True))
@@ -50,6 +50,14 @@ class ZoneTrainingSoundsTest(unittest.TestCase):
         self.assertEqual(len(zts.DECREASE_GAINS), len(zts.DECREASE_HZ))
         self.assertEqual(zts.DECREASE_GAINS, sorted(zts.DECREASE_GAINS, reverse=True))
         self.assertGreater(zts.DECREASE_GAINS[0], zts.DECREASE_GAINS[-1])
+
+class IntervalSoundsTest(unittest.TestCase):
+    def test_interval_sounds_exist_for_every_phase_cue(self):
+        for name in ("zone-go.wav", "zone-rest.wav", "zone-done.wav"):
+            with self.subTest(name=name):
+                self.assertIn(name, zts.SOUNDS)
+                self.assertTrue((RESOURCES / name).is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

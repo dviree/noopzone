@@ -166,11 +166,11 @@ struct WorkoutSelectionScreen: View {
 
 /// Zone training's only step: one card per selectable zone (2, 3, 4), each with its name and the
 /// user's own bpm interval — the same `TargetZoneCoach.Config` band the coach will hold them to, so the
-/// number on the card is the number the strap enforces. Choosing a zone reports it (the caller starts the
-/// workout) and dismisses.
+/// number on the card is the number the strap enforces — plus a 4×4 interval session in Zone 4. Choosing
+/// a card reports it (the caller starts the workout) and dismisses.
 struct ZoneTrainingSheet: View {
     let zoneSet: HRZoneSet
-    let onPick: (_ zone: Int) -> Void
+    let onPick: (_ zone: Int, _ intervals: Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -194,6 +194,14 @@ struct ZoneTrainingSheet: View {
                         ForEach(TargetZonePrefs.selectableZones, id: \.self) { zone in
                             zoneCard(zone, config: TargetZoneCoach.Config.forZone(zone, in: zoneSet))
                         }
+                    }
+
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        Text("INTERVALS")
+                            .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                        intervalCard(config: TargetZoneCoach.Config.forZone(IntervalPlan.fourByFourZone,
+                                                                           in: zoneSet))
                     }
 
                     if TargetZonePrefs.selectableZones.allSatisfy({ TargetZoneCoach.Config.forZone($0, in: zoneSet) == nil }) {
@@ -230,12 +238,25 @@ struct ZoneTrainingSheet: View {
     }
 
     private func zoneCard(_ zone: Int, config: TargetZoneCoach.Config?) -> some View {
-        let color = StrandPalette.hrZoneColor(zone)
-        let title = String(localized: "Zone \(zone)")
-        let name = LiveWorkoutView.zoneName(zone)
+        choiceCard(title: String(localized: "Zone \(zone)"), subtitle: LiveWorkoutView.zoneName(zone),
+                   color: StrandPalette.hrZoneColor(zone), config: config) { onPick(zone, false) }
+    }
+
+    /// The 4×4 session: Zone 4 work blocks with silent rests (`IntervalPlan.fourByFour`).
+    private func intervalCard(config: TargetZoneCoach.Config?) -> some View {
+        let plan = IntervalPlan.fourByFour
+        let zone = IntervalPlan.fourByFourZone
+        return choiceCard(
+            title: String(localized: "4×4 intervals"),
+            subtitle: String(localized: "Zone \(zone) · \(plan.rounds) × \(Int(plan.workSeconds / 60)) min, \(Int(plan.restSeconds / 60)) min rest"),
+            color: StrandPalette.hrZoneColor(zone), config: config) { onPick(zone, true) }
+    }
+
+    private func choiceCard(title: String, subtitle: String, color: Color, config: TargetZoneCoach.Config?,
+                            action: @escaping () -> Void) -> some View {
         let range = config.map { "\(Int($0.lowerBpm))-\(Int($0.upperBpm)) bpm" }
         return Button {
-            onPick(zone)
+            action()
             dismiss()
         } label: {
             NoopCard(padding: NoopMetrics.cardInnerPadding, tint: color) {
@@ -245,7 +266,7 @@ struct ZoneTrainingSheet: View {
                         Text(title)
                             .font(StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
-                        Text(name)
+                        Text(subtitle)
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
@@ -267,7 +288,7 @@ struct ZoneTrainingSheet: View {
         .disabled(config == nil)
         .opacity(config == nil ? 0.5 : 1)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text([title, name, range].compactMap { $0 }.joined(separator: ", ")))
+        .accessibilityLabel(Text([title, subtitle, range].compactMap { $0 }.joined(separator: ", ")))
         .accessibilityHint(Text("Double tap to start"))
     }
 }

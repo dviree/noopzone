@@ -50,7 +50,7 @@ struct WorkoutStartControl: View {
 }
 
 /// Zone training: a workout that coaches toward one heart-rate zone. Tap it, pick the zone (2, 3 or 4,
-/// shown with the user's own bpm interval) and the session starts at once with the target-zone coach on:
+/// shown with the user's own bpm interval, or a 4×4 interval session in Zone 4) and the session starts at once with the target-zone coach on:
 /// the strap taps twice below the zone, three times above it and once back in, mirrored as notifications.
 /// No activity step — the session is recorded under the catalogue default sport.
 ///
@@ -73,8 +73,8 @@ struct ZoneTrainingStartControl: View {
         .sheet(isPresented: $showZonePicker, onDismiss: {
             if startedZone != nil, model.activeWorkout != nil { showLiveWorkout = true }
         }) {
-            ZoneTrainingSheet(zoneSet: model.profile.hrZoneSet) { zone in
-                model.startWorkout(targetZone: zone)
+            ZoneTrainingSheet(zoneSet: model.profile.hrZoneSet) { zone, intervals in
+                model.startWorkout(targetZone: zone, intervals: intervals)
                 startedZone = zone
             }
         }

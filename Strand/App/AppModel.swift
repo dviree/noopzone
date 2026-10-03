@@ -844,13 +844,16 @@ final class AppModel: ObservableObject {
     ///
     /// `targetZone` makes it a Zone training workout (2, 3 or 4): the target-zone coach runs for this
     /// session only. Every other start (the plain Start workout, Live, Shortcuts) passes 0, so a zone picked
-    /// for one session never carries into the next.
-    func startWorkout(sport: String = WorkoutCatalog.defaultSportName, targetZone: Int = 0) {
+    /// for one session never carries into the next. `intervals` makes it a 4×4 interval session instead
+    /// of steady coaching (always Zone 4).
+    func startWorkout(sport: String = WorkoutCatalog.defaultSportName, targetZone: Int = 0,
+                      intervals: Bool = false) {
         guard activeWorkout == nil else { return }
         lastWorkout = nil
         // Before `activeWorkout` is set, so the setting's sink sees no workout and leaves the coach alone;
         // `syncTargetZoneCoach()` below starts it once the session exists.
-        behavior.targetZone = TargetZonePrefs.resolve(targetZone)
+        behavior.targetZoneIntervals = intervals
+        behavior.targetZone = intervals ? IntervalPlan.fourByFourZone : TargetZonePrefs.resolve(targetZone)
         let name = sport.trimmingCharacters(in: .whitespaces)
         let resolved = name.isEmpty ? WorkoutCatalog.defaultSportName : name
         let started = Date()
@@ -981,6 +984,7 @@ final class AppModel: ObservableObject {
         activeWorkout = nil
         syncTargetZoneCoach()
         behavior.targetZone = 0
+        behavior.targetZoneIntervals = false
         if activeWorkoutIsGps { gpsRecorder.stop() }
         activeWorkoutIsGps = false
         ActiveWorkoutPersistence.clear()
@@ -1007,6 +1011,7 @@ final class AppModel: ObservableObject {
         activeWorkout = nil
         syncTargetZoneCoach()
         behavior.targetZone = 0
+        behavior.targetZoneIntervals = false
         let wasGps = activeWorkoutIsGps
         activeWorkoutIsGps = false
         // Drop the durable snapshot the instant the session ends , whether it saves below or is discarded
@@ -1936,8 +1941,11 @@ final class AppModel: ObservableObject {
             }
             return
         }
-        guard targetZoneCoach.zone != target else { return }
-        targetZoneCoach.start(zone: target, zoneSet: profile.hrZoneSet, model: self)
+        // A 4×4 runs only toward its own zone; picking another zone on the card ends the intervals.
+        let plan: IntervalPlan? = behavior.targetZoneIntervals && target == IntervalPlan.fourByFourZone
+            ? .fourByFour : nil
+        guard targetZoneCoach.zone != target || targetZoneCoach.plan != plan else { return }
+        targetZoneCoach.start(zone: target, zoneSet: profile.hrZoneSet, model: self, plan: plan)
     }
 
     /// HR-zone haptic coaching: buzz when crossing into the top zone (ease off) or back to recovery.

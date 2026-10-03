@@ -18,6 +18,10 @@ import WhoopProtocol
 //   • below the zone → `push`    (two light taps)
 //   • above the zone → `easeOff` (three heavier taps)
 //   • reached it     → one short tap (the lightest buzz there is)
+//
+// With an `IntervalPlan` (4×4) the zone coaching runs only inside WORK blocks; each phase change gets its
+// own cue instead, matching the Interval timer's convention: one strong 3-loop buzz to GO, two long buzzes
+// to REST, one long 5-loop buzz when the session is done.
 
 /// Which target zones the coach offers, and how a stored value resolves to one.
 enum TargetZonePrefs {
@@ -64,6 +68,33 @@ enum TargetZoneCues {
             }
         }
     }
+
+    /// The cue at an interval phase change.
+    enum IntervalCue: Equatable {
+        case go(round: Int)
+        case rest(round: Int)
+        case done
+    }
+
+    /// The cue for entering phase `index` of `plan` (nil = the session is complete).
+    static func intervalCue(enteringPhase index: Int?, of plan: IntervalPlan) -> IntervalCue {
+        guard let index, plan.phases.indices.contains(index) else { return .done }
+        let phase = plan.phases[index]
+        switch phase.kind {
+        case .work: return .go(round: phase.round)
+        case .rest: return .rest(round: phase.round)
+        }
+    }
+
+    /// The strap buzzes for an interval cue: (loops, milliseconds to the next buzz). Same convention as the
+    /// Interval timer: a strong cue into work, a softer double into rest, a long one at the end.
+    static func buzzes(for cue: IntervalCue) -> [(loops: UInt8, afterMs: Int)] {
+        switch cue {
+        case .go: return [(3, 0)]
+        case .rest: return [(2, 900), (2, 0)]
+        case .done: return [(5, 0)]
+        }
+    }
 }
 
 @MainActor
@@ -72,6 +103,8 @@ final class TargetZoneCoachRunner: ObservableObject {
     /// See `LiveSessionRunner.timerToleranceSec`: elapsed math uses the wall clock, so a coalesced tick
     /// changes nothing but when the screen refreshes.
     static let timerToleranceSec: TimeInterval = 0.1
+    /// How long an interval cue holds the wrist, so a zone cue in the same second cannot overlap it.
+    static let intervalCueHoldSec: TimeInterval = 2.5
 
     // MARK: Published state (the workout screen's coaching card reads ONLY these)
 
@@ -79,12 +112,20 @@ final class TargetZoneCoachRunner: ObservableObject {
     @Published private(set) var zone: Int?
     /// The bpm interval being coached toward — the same `HRZoneSet` band every zone readout shows.
     @Published private(set) var config: TargetZoneCoach.Config?
-    /// The committed state, nil until the first one is committed.
+    /// The committed state, nil until the first one is committed (and outside work blocks).
     @Published private(set) var state: TargetZoneCoach.State?
     /// Seconds spent in the target zone this workout (with a live reading).
     @Published private(set) var inZoneSeconds: Int = 0
     /// False while the engine is being fed no reading.
     @Published private(set) var hasReading = false
+    /// The interval session, when this is a 4×4 rather than steady zone training.
+    @Published private(set) var plan: IntervalPlan?
+    /// The current interval phase; nil before the first tick and once the session is complete.
+    @Published private(set) var phase: IntervalPlan.Phase?
+    /// Whole seconds left in the current phase.
+    @Published private(set) var phaseRemaining: Int = 0
+    /// True once every work block of the plan has run.
+    @Published private(set) var intervalsDone = false
 
     var isActive: Bool { zone != nil }
 
@@ -96,24 +137,31 @@ final class TargetZoneCoachRunner: ObservableObject {
     private weak var model: AppModel?
     /// When the in-flight pulse walk finishes; a cue arriving before then skips the wrist (never queued).
     private var hapticWalkUntil = Date.distantPast
+    /// The phase index the last tick saw; `.none` (outer nil) until the first tick.
+    private var lastPhaseIndex: Int??
+    /// In-zone seconds from work blocks already finished (each block gets a fresh engine).
+    private var bankedInZoneSeconds: Double = 0
 
     deinit { timer?.invalidate() }
 
     // MARK: - Start / stop
 
-    /// Begin coaching toward `zone` of the profile's zone set. A no-op when the zone is not selectable or the
-    /// zone set has no usable band for it. Restarting (a new zone mid-workout) resets the time in zone,
-    /// because "time in Zone 3" must not include minutes spent coaching toward Zone 2.
-    func start(zone: Int, zoneSet: HRZoneSet, model: AppModel) {
+    /// Begin coaching toward `zone` of the profile's zone set, optionally as an interval session. A no-op
+    /// when the zone is not selectable or the zone set has no usable band for it. Restarting (a new zone
+    /// mid-workout) resets the time in zone, because "time in Zone 3" must not include minutes spent
+    /// coaching toward Zone 2.
+    func start(zone: Int, zoneSet: HRZoneSet, model: AppModel, plan: IntervalPlan? = nil) {
         stop()
         guard TargetZonePrefs.resolve(zone) != 0,
               let config = TargetZoneCoach.Config.forZone(zone, in: zoneSet) else { return }
         self.model = model
         self.zone = zone
         self.config = config
+        self.plan = plan
         engine = TargetZoneCoach(config: config)
+        let mode = plan.map { " as \($0.rounds)x\(Int($0.workSeconds / 60)) intervals" } ?? ""
         model.live.append(log: AppModel.stamped(
-            "Zone training: coaching Zone \(zone) (\(Int(config.lowerBpm))-\(Int(config.upperBpm)) bpm)"))
+            "Zone training: coaching Zone \(zone) (\(Int(config.lowerBpm))-\(Int(config.upperBpm)) bpm)\(mode)"))
 
         // Pocket-the-phone survival, as in LiveSessionRunner: a suspended app stops firing the Timer, but
         // CoreBluetooth keeps delivering packets, so tick on each one too. R-R arrives with every packet even
@@ -130,6 +178,7 @@ final class TargetZoneCoachRunner: ObservableObject {
         }
         t.tolerance = Self.timerToleranceSec
         timer = t
+        tick()
     }
 
     /// Stop coaching and clear the published state. Safe to call when not running.
@@ -140,33 +189,93 @@ final class TargetZoneCoachRunner: ObservableObject {
         engine = nil
         model = nil
         hapticWalkUntil = .distantPast
+        lastPhaseIndex = .none
+        bankedInZoneSeconds = 0
         if zone != nil { zone = nil }
         if config != nil { config = nil }
         if state != nil { state = nil }
         if inZoneSeconds != 0 { inZoneSeconds = 0 }
         if hasReading { hasReading = false }
+        if plan != nil { plan = nil }
+        if phase != nil { phase = nil }
+        if phaseRemaining != 0 { phaseRemaining = 0 }
+        if intervalsDone { intervalsDone = false }
     }
 
     // MARK: - Tick
 
     private func tick() {
-        guard let model, var engine, let zone else { return }
+        guard let model, let zone, let config, engine != nil else { return }
         let now = Date()
-        let reading = TargetZoneCues.coachableReading(
+        var reading = TargetZoneCues.coachableReading(
             bpm: model.bpm, worn: model.live.worn, paused: model.activeWorkout?.isPaused ?? true)
+
+        if let plan {
+            let elapsed = model.activeWorkout?.elapsed(at: now) ?? 0
+            let index = plan.phaseIndex(at: elapsed)
+            if lastPhaseIndex != .some(index) {
+                enterPhase(index, of: plan, zone: zone, config: config, model: model)
+            }
+            let current = index.map { plan.phases[$0] }
+            if phase != current { phase = current }
+            let left = Int(current?.remaining(at: elapsed).rounded(.up) ?? 0)
+            if phaseRemaining != left { phaseRemaining = left }
+            if intervalsDone != (index == nil) { intervalsDone = index == nil }
+
+            // Rest and after the last block: no zone coaching at all, only the time.
+            guard let current, current.kind == .work else {
+                if state != nil { state = nil }
+                let hasNow = reading != nil
+                if hasReading != hasNow { hasReading = hasNow }
+                return
+            }
+            // The climb: a reading below the zone early in a work block is withheld, so it neither commits
+            // "below" nor says "increase" while the heart rate is still on its way up. Above-zone and
+            // in-zone readings pass, so "decrease" still works from the first second.
+            if plan.inClimbGrace(current, at: elapsed), let r = reading, engine?.classify(Double(r)) == .below {
+                reading = nil
+            }
+        }
+
+        guard var engine else { return }
         let out = engine.update(now: Int(now.timeIntervalSince1970), bpm: reading)
         self.engine = engine
 
         // Publish only what changed: this runs every second and on every sample.
         if state != out.state { state = out.state }
-        let secs = Int(out.inZoneSeconds)
+        let secs = Int(bankedInZoneSeconds + out.inZoneSeconds)
         if inZoneSeconds != secs { inZoneSeconds = secs }
-        let hasNow = !out.noReading
+        let hasNow = plan == nil ? !out.noReading : model.bpm != nil
         if hasReading != hasNow { hasReading = hasNow }
 
         if let feedback = out.feedback, let bpm = reading {
             deliver(feedback, zone: zone, bpm: bpm, model: model, notify: model.behavior.targetZoneNotifications)
         }
+    }
+
+    /// A phase change in an interval session: a fresh engine for each work block (so a state committed in
+    /// the last block, or its cooldown, does not carry into this one), and the cue for the new phase.
+    private func enterPhase(_ index: Int?, of plan: IntervalPlan, zone: Int, config: TargetZoneCoach.Config,
+                            model: AppModel) {
+        lastPhaseIndex = .some(index)
+        if let engine { bankedInZoneSeconds += engine.inZoneSeconds }
+        engine = TargetZoneCoach(config: config)
+
+        let cue = TargetZoneCues.intervalCue(enteringPhase: index, of: plan)
+        let notify = model.behavior.targetZoneNotifications
+        let wristOn = HapticPrefs.enabled(HapticPrefs.workout)
+        if wristOn { walkBuzzes(TargetZoneCues.buzzes(for: cue), model: model) }
+        if notify { TargetZoneNotifier.postInterval(cue, zone: zone, plan: plan) }
+
+        let what: String
+        switch cue {
+        case .go(let round): what = "go, interval \(round) of \(plan.rounds)"
+        case .rest(let round): what = "rest after interval \(round)"
+        case .done: what = "intervals done"
+        }
+        model.live.append(log: AppModel.stamped(
+            "Zone training: \(what); wrist cue \(wristOn ? "requested" : "off (workout haptics disabled)"); "
+            + "notification \(notify ? "on" : "off")"))
     }
 
     // MARK: - Feedback → wrist + phone
@@ -212,5 +321,19 @@ final class TargetZoneCoachRunner: ObservableObject {
         }
         hapticWalkUntil = nowDate.addingTimeInterval(Double(offsetMs) / 1000)
         return true
+    }
+
+    /// Fire an interval cue's buzzes. Unlike a zone cue it is never skipped — a missed GO is a missed
+    /// interval — and it holds the wrist for `intervalCueHoldSec` so a zone cue cannot land on top of it.
+    private func walkBuzzes(_ buzzes: [(loops: UInt8, afterMs: Int)], model: AppModel) {
+        var offsetMs = 0
+        for buzz in buzzes {
+            let loops = buzz.loops
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(offsetMs)) { [weak model] in
+                model?.buzz(loops: loops)
+            }
+            offsetMs += buzz.afterMs
+        }
+        hapticWalkUntil = Date().addingTimeInterval(Self.intervalCueHoldSec + Double(offsetMs) / 1000)
     }
 }
