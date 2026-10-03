@@ -61,6 +61,12 @@ final class TargetZoneCoachRunnerTests: XCTestCase {
         XCTAssertEqual(TargetZoneNotifier.identifier, "target-zone-coach")
     }
 
+    func testIncreaseAndDecreaseHaveTheirOwnSounds() {
+        XCTAssertEqual(TargetZoneNotifier.soundName(for: .below), "zone-increase.wav")
+        XCTAssertEqual(TargetZoneNotifier.soundName(for: .above), "zone-decrease.wav")
+        XCTAssertEqual(TargetZoneNotifier.soundName(for: .enteredZone), "zone-in.wav")
+    }
+
     func testCopyNamesTheTargetZone() {
         for zone in TargetZonePrefs.selectableZones {
             for feedback in [TargetZoneCoach.Feedback.below, .enteredZone, .above] {
