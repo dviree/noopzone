@@ -483,12 +483,12 @@ struct RootTabView: View {
                     // from the iPhone More list, leaving Alarms unreachable on iPhone. Restore it here
                     // (route to SmartAlarmView, the cross-platform iOS/macOS surface).
                     //
-                    // Notifications (RootView .notifications) is deliberately NOT added: that screen is
-                    // macOS-only (it picks which Mac apps tap your wrist via NSWorkspace, imports AppKit,
-                    // and project.yml excludes Screens/NotificationSettingsView.swift from the iOS target),
-                    // so it can't compile or apply on iPhone. iPhone's wrist-alert controls live on the
-                    // Automations screen instead. Its absence from the iPhone More list is correct.
+                    // Notifications here is the iPhone's own screen (PhoneNotificationsView): every phone
+                    // notification and Live Activity switch in one place. The macOS Notifications screen
+                    // (NotificationSettingsView, which picks the Mac apps that tap your wrist) stays
+                    // excluded from iOS; iPhone's wrist-alert controls live on the Automations screen.
                     MoreRow("Alarms", "alarm.fill", .alarms)
+                    MoreRow("Notifications", "bell.badge.fill", .notifications)
                     MoreRow("Automations", "wand.and.stars", .automations)
                     // The Test Centre (the diagnostics + bug-report hub) gets a first-class home here, not
                     // just buried in Settings, so the feedback loop is one tap from the More tab.
@@ -582,7 +582,7 @@ private enum MoreDestination: Hashable {
     case insightsHub, intelligence, coach, insights, explore, compare
     case live, workouts, liftLog, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
-    case alarms, automations, testCentre, siriShortcuts, powerSaving, settings
+    case alarms, notifications, automations, testCentre, siriShortcuts, powerSaving, settings
 
     @ViewBuilder var destination: some View {
         switch self {
@@ -609,6 +609,7 @@ private enum MoreDestination: Hashable {
         case .backupSync:      BackupSyncView()
         case .shortcutsExport: ShortcutExportSettingsView()
         case .alarms:          SmartAlarmView()
+        case .notifications:   PhoneNotificationsView()
         case .automations:     AutomationsView()
         case .testCentre:      TestCentreView()
         case .siriShortcuts:   SiriShortcutsSettingsView()

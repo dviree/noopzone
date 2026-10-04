@@ -131,6 +131,24 @@ public final class NoopMotionState: ObservableObject {
     /// non-SwiftUI reader (the motion sensor) and the `@AppStorage` toggle never disagree.
     @Published public private(set) var quietMotion: Bool
 
+    /// iPhone only: nobody has touched the screen for `idleAfter` seconds.
+    ///
+    /// A per-frame loop keeps a ProMotion panel at its loop's rate for as long as it runs, so a Today
+    /// screen left open on a table never let the display drop to its low idle rate, and the CPU kept
+    /// drawing frames that differed only in decoration. Posing still while idle hands the refresh rate
+    /// back to the system: it falls as soon as nothing moves and rises again with the first touch,
+    /// which is the adaptive behaviour ProMotion is built around. Values still update when data
+    /// arrives; only the decorative motion waits.
+    ///
+    /// Off until the app calls `enableIdleTracking(after:)`, so macOS and the tests never see it.
+    @Published public private(set) var idle: Bool = false
+
+    /// Posted on every `idle` flip with `["idle": Bool]`, for the non-View reader (the tilt sensor).
+    nonisolated public static let idleDidChange = Notification.Name("NoopMotionState.idleDidChange")
+
+    private var idleAfter: TimeInterval?
+    private var idleWork: DispatchWorkItem?
+
     private init() {
         isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
         quietMotion = UserDefaults.standard.bool(forKey: QuietMotionPrefs.enabledKey)
@@ -231,6 +249,40 @@ public final class NoopMotionState: ObservableObject {
         !windows.isEmpty && !windows.contains { $0.onScreen }
     }
 
+    /// Start the idle clock. Called once by the iPhone app, which then reports touches through
+    /// `noteInteraction()`.
+    public func enableIdleTracking(after seconds: TimeInterval) {
+        idleAfter = seconds
+        noteInteraction()
+    }
+
+    /// Stop the idle clock and let the motion run again.
+    public func disableIdleTracking() {
+        idleAfter = nil
+        idleWork?.cancel()
+        idleWork = nil
+        setIdle(false)
+    }
+
+    /// A touch, or the app returning to the foreground: wake the motion now and restart the idle clock.
+    /// Cheap enough to call on every touch (one cancelled and one scheduled work item).
+    public func noteInteraction() {
+        guard let after = idleAfter else { return }
+        idleWork?.cancel()
+        setIdle(false)
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.setIdle(true) }
+        }
+        idleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + after, execute: work)
+    }
+
+    private func setIdle(_ now: Bool) {
+        guard idle != now else { return }
+        idle = now
+        NotificationCenter.default.post(name: Self.idleDidChange, object: self, userInfo: ["idle": now])
+    }
+
     /// The gate. `reduceMotion` comes from `@Environment(\.accessibilityReduceMotion)` at the call
     /// site — the environment is the only place SwiftUI publishes it, and reading it imperatively
     /// would not invalidate the view when the user changes the setting.
@@ -242,13 +294,13 @@ public final class NoopMotionState: ObservableObject {
     /// ```
     @inline(__always)
     public func poseStill(_ reduceMotion: Bool) -> Bool {
-        reduceMotion || isLowPower || quietMotion || windowObscured
+        reduceMotion || isLowPower || quietMotion || windowObscured || idle
     }
 
     /// The non-environment signals on their own, for an imperative (non-View) reader that supplies its
     /// own Reduce Motion read — e.g. the decorative motion sensor deciding whether to start at all.
     /// Views must use `poseStill(_:)` instead so they invalidate correctly.
-    public var poseStillIgnoringReduceMotion: Bool { isLowPower || quietMotion || windowObscured }
+    public var poseStillIgnoringReduceMotion: Bool { isLowPower || quietMotion || windowObscured || idle }
 }
 
 // MARK: - CountUpText

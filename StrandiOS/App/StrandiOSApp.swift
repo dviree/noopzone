@@ -246,6 +246,8 @@ struct StrandiOSApp: App {
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                // Touches restart the idle clock that lets ProMotion drop its refresh rate (IdleTouchWatcher).
+                .background(IdleTouchWatcher())
                 // `hr` is the value being written: this runs in willSet, when `live.heartRate` still holds the old one.
                 .onReceive(model.live.$heartRate) { hr in
                     // The gym banner's own cheap path: no presentation is built here, and a heart rate moves
@@ -349,6 +351,8 @@ struct StrandiOSApp: App {
         // safe no-op until the user opts in.
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
+                // Back in front: wake the decorative motion rather than open on a still screen.
+                NoopMotionState.shared.noteInteraction()
                 CoachBriefScheduler.activateIfEnabled { await model.coach.generateBrief() }
                 model.drainPendingIntents(router: router)
                 // iOS starts a Lift Log banner only for an app on screen, so a banner lost while NOOP was in

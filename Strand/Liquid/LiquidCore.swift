@@ -87,6 +87,9 @@ final class LiquidMotion {
     #endif
     private var started = false
     private var refCount = 0
+    /// Mirror of `NoopMotionState.idle` (iPhone left untouched), kept by its change notification so this
+    /// non-isolated class never reads the main-actor object directly.
+    private var idle = false
 
     private init() {
         #if os(iOS) && !targetEnvironment(macCatalyst)
@@ -108,6 +111,11 @@ final class LiquidMotion {
                        object: nil, queue: .main) { [weak self] _ in self?.syncToPolicy() }
         nc.addObserver(forName: UserDefaults.didChangeNotification,
                        object: UserDefaults.standard, queue: .main) { [weak self] _ in self?.syncToPolicy() }
+        nc.addObserver(forName: NoopMotionState.idleDidChange,
+                       object: nil, queue: .main) { [weak self] note in
+            self?.idle = note.userInfo?["idle"] as? Bool ?? false
+            self?.syncToPolicy()
+        }
         #endif
     }
 
@@ -134,7 +142,7 @@ final class LiquidMotion {
     }
 
     private func startIfWanted() {
-        guard !started, refCount > 0, !LiquidMotion.quietNow else { return }
+        guard !started, refCount > 0, !idle, !LiquidMotion.quietNow else { return }
         started = true
         #if os(iOS) && !targetEnvironment(macCatalyst)
         guard manager.isDeviceMotionAvailable else { started = false; return }
@@ -184,7 +192,7 @@ final class LiquidMotion {
 
     /// Re-evaluate after a Low Power Mode / Reduce Motion / in-app-toggle change.
     private func syncToPolicy() {
-        if LiquidMotion.quietNow { stop() } else { startIfWanted() }
+        if idle || LiquidMotion.quietNow { stop() } else { startIfWanted() }
     }
 }
 

@@ -10,10 +10,11 @@ import XCTest
 /// restored `MoreRow("Alarms", "alarm.fill")` row uses. A future icon rename then fails here so the two
 /// shells get fixed in lockstep rather than silently drifting apart again.
 ///
-/// Notifications (`NavItem.notifications`) is deliberately NOT mirrored on iPhone: its screen
-/// (`NotificationSettingsView`) is macOS-only (NSWorkspace app picker, imports AppKit, excluded from the
-/// iOS target in project.yml), so the iPhone More list correctly omits it. The enum case still exists for
-/// the macOS sidebar; that's all this asserts about it.
+/// Notifications (`NavItem.notifications`) is not mirrored on iPhone as the same screen: the macOS one
+/// (`NotificationSettingsView`) is an NSWorkspace app picker, imports AppKit and is excluded from the iOS
+/// target in project.yml. The iPhone More list has its own Notifications row instead, which opens
+/// `PhoneNotificationsView` (the phone's notification and Live Activity switches). The enum case still
+/// exists for the macOS sidebar; that's all this asserts about it.
 final class MoreListParityTests: XCTestCase {
 
     /// Alarms is the destination the iPhone More list had been missing; it must exist in the shared
@@ -29,8 +30,8 @@ final class MoreListParityTests: XCTestCase {
         XCTAssertEqual(NavItem.smartAlarm.icon, "alarm.fill")
     }
 
-    /// Notifications stays a (macOS-only) sidebar destination. It is intentionally absent from the iPhone
-    /// More list, so this only documents that the enum case is still the macOS home for it.
+    /// Notifications stays a sidebar destination on macOS. The iPhone More list routes its own row to a
+    /// different screen, so this only documents that the enum case is still the macOS home for it.
     func testNotificationsRemainsAMacOSSidebarDestination() {
         XCTAssertTrue(NavItem.allCases.contains(.notifications))
     }

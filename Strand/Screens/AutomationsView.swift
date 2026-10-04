@@ -65,10 +65,16 @@ struct AutomationsView: View {
             // the wind-down reminder. It's moved to the dedicated Alarms screen (SmartAlarmView) so every
             // wake/wind-down control lives in one place. Automations is just inputs-to-actions now.
             inactivityCard
+            #if os(iOS)
+            // The illness, battery and strain-target switches are phone notifications, so on iPhone they
+            // live on the Notifications screen (PhoneNotificationsView) with the rest; macOS keeps them here.
+            healthInsightsCard
+            #else
             illnessCard
             healthInsightsCard
             batteryCard
             strainTargetCard
+            #endif
         }
     }
 
@@ -220,12 +226,14 @@ struct AutomationsView: View {
                 ToggleRow(label: String(localized: "HR-zone coaching"),
                           help: String(localized: "Buzz when you hit your top zone (ease off) and again when you recover. Uses your max HR from Settings."),
                           isOn: $behavior.zoneCoaching)
+                #if !os(iOS)
                 rowDivider
                 // Zone training itself starts from Workouts (pick a zone); only its notification mirror
-                // is a standing preference, so it is the one piece that lives here.
+                // is a standing preference. On iPhone it sits on the Notifications screen instead.
                 ToggleRow(label: String(localized: "Phone notifications"),
                           help: String(localized: "Mirror each target-zone cue as a notification on this device. A new one replaces the last."),
                           isOn: $behavior.targetZoneNotifications)
+                #endif
                 rowDivider
                 // v5 L3 closed-loop check-in (master + sub toggles). Default OFF, manual-first. The keys
                 // mirror BiofeedbackPrefs, which the central detector (AppModel.evaluateStress) reads.

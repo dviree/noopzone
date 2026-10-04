@@ -117,11 +117,6 @@ struct SettingsView: View {
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
     @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
-    // Live-HR Live Activity (Lock Screen + Dynamic Island), iOS only (#336). Default on.
-    @AppStorage(UnitPrefs.liveActivityKey) private var liveActivityEnabled = false
-    // Strap-sync Live Activity, iOS only. Separate from the live-HR one on purpose. Default on.
-    @AppStorage(UnitPrefs.syncLiveActivityKey) private var syncLiveActivityEnabled = true
-    @AppStorage(UnitPrefs.liftLiveActivityKey) private var liftLiveActivityEnabled = true
     @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
     // Alternate app icon (iOS only) — false = Titanium (primary AppIcon), true = Blue Titanium
     // ("AppIcon-Navy"). Display-only preference; the live switch goes through setAlternateIconName.
@@ -1579,43 +1574,27 @@ struct SettingsView: View {
     /// `noop.hrvBaselineEpoch` and `noop.recoveryBaselineEpoch` settings the recovery engine reads, then
     /// kicks a recompute the same way the sleep-edit path does (analyzeRecent → refresh). History stays.
     #if os(iOS)
-    /// NOOP's live notifications — its Live Activities, on the Lock Screen and in the Dynamic Island — one switch
-    /// each: the live heart rate, a Lift Log session, a strap sync. These three are every Live Activity the app has.
-    /// A switch only decides whether its notification is SHOWN: the heart rate is still measured, recorded and
-    /// scored, a session still runs and buzzes, a sync still runs, with any of them off.
+    /// The way to the Notifications screen. The Live Activity switches that used to sit here moved there,
+    /// beside every other notification NOOP can post on this phone, so the two screens cannot disagree.
     private var liveNotificationsCard: some View {
         SettingsSection(
             icon: "bell.badge",
-            title: "Live notifications",
-            blurb: "Shown on the Lock Screen and in the Dynamic Island. A switch only hides one: NOOP still measures and records everything."
+            title: "Notifications",
+            blurb: "Lock Screen activities, zone training, battery, strain and illness alerts, and reminders. All in one place."
         ) {
-            VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
-                liveNotificationSwitch("Live heart rate", isOn: $liveActivityEnabled,
-                                       detail: "While the strap is connected.")
-                rowDivider
-                liveNotificationSwitch("Lift Log session", isOn: $liftLiveActivityEnabled,
-                                       detail: "Your set, rest and heart rate, and the Lock Screen light-up on a double-tap.")
-                rowDivider
-                liveNotificationSwitch("Strap sync", isOn: $syncLiveActivityEnabled,
-                                       detail: "Progress while NOOP pulls history from the strap.")
+            NavigationLink(destination: PhoneNotificationsView()) {
+                HStack {
+                    Text("Open Notifications")
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .contentShape(Rectangle())
             }
-        }
-    }
-
-    private func liveNotificationSwitch(_ title: LocalizedStringKey, isOn: Binding<Bool>,
-                                        detail: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-            Toggle(isOn: isOn) {
-                Text(title)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
-            Text(detail)
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+            .buttonStyle(LiquidPressStyle())
         }
     }
     #endif
