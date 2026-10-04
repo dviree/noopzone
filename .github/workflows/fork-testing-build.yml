@@ -226,6 +226,19 @@ jobs:
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qr "NOOP-ios-unsigned-v${VER}.ipa" Payload
           gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-ios-unsigned-v${VER}.ipa" --repo "$GITHUB_REPOSITORY" --clobber
+      # SideStore / AltStore source for this rolling build, attached to the SAME release so its URL never
+      # changes: https://github.com/<owner>/<repo>/releases/download/testing-latest/sidestore-source.json
+      # It names the .ipa just uploaded (version, build number, size), so each new build shows up in
+      # SideStore as an update.
+      - name: Attach SideStore source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ needs.meta.outputs.ver }}
+        run: |
+          BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION' project.yml | sed -E 's/.*"([^"]+)".*/\1/')
+          python3 Tools/sidestore_source.py --repo "$GITHUB_REPOSITORY" --tag "${{ needs.meta.outputs.tag }}" \
+            --version "$VER" --build "$BUILD" --ipa "NOOP-ios-unsigned-v${VER}.ipa" --out sidestore-source.json
+          gh release upload "${{ needs.meta.outputs.tag }}" sidestore-source.json --repo "$GITHUB_REPOSITORY" --clobber
 
   # Fork-only housekeeping: the disposable `noop-staging` branch exists ONLY to feed this build. Once every
   # platform job has finished (pass OR fail — always()), delete it so GitHub's "Compare & pull request"
