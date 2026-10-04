@@ -1,5 +1,6 @@
 #if os(iOS)
 import Foundation
+import UIKit
 import Combine
 import BackgroundTasks
 
@@ -19,8 +20,9 @@ import BackgroundTasks
 /// On by default. Off restores the old always-connected behaviour.
 @MainActor
 final class BackgroundDormancy {
-    /// The longest an in-flight offload may hold off sleep. An offload that has not finished by then
-    /// resumes from where the strap left it on the next open; the strap only trims what was acknowledged.
+    /// How long the strap may keep syncing after the app is left. An offload that has not finished by
+    /// then resumes from where the strap left it on the next open; the strap only trims what was
+    /// acknowledged.
     static let maxSyncGraceSeconds: TimeInterval = 60
 
     private weak var model: AppModel?
@@ -28,6 +30,10 @@ final class BackgroundDormancy {
     private var inBackground = false
     private var sinks = Set<AnyCancellable>()
     private var pendingSleep: AnyCancellable?
+    /// When the app last came to the foreground (epoch seconds, as `LiveState.lastSyncedAt`).
+    private var openedAt: TimeInterval = 0
+    /// Asks iOS for running time through the sync minute, so the 2 s check fires even between packets.
+    private var graceTask: UIBackgroundTaskIdentifier = .invalid
 
     func attach(model: AppModel, health: HealthKitBridge) {
         self.model = model
@@ -53,6 +59,7 @@ final class BackgroundDormancy {
 
     func appBecameActive() {
         inBackground = false
+        openedAt = Date().timeIntervalSince1970
         reevaluate()
     }
 
@@ -68,26 +75,56 @@ final class BackgroundDormancy {
             scheduleSleep()
         } else {
             pendingSleep = nil
+            endGraceTask()
             wake()
         }
     }
 
-    /// Sleep now, or as soon as an offload in flight finishes (bounded by `maxSyncGraceSeconds`).
+    /// Leaving the app gives the strap up to `maxSyncGraceSeconds` to finish syncing what it banked while
+    /// NOOP was asleep: sleep as soon as a sync has completed since the app was opened and none is
+    /// running, or when the minute is up, whichever comes first. Checked every 2 s, only inside that
+    /// minute.
     private func scheduleSleep() {
         guard let model, !model.ble.dormant, pendingSleep == nil else { return }
-        guard model.live.backfilling else { sleep(); return }
+        if syncDone(model) { sleep(); return }
         model.live.append(log: AppModel.stamped(
-            "Asleep soon: letting the strap sync in progress finish first (at most \(Int(Self.maxSyncGraceSeconds)) s)"))
-        pendingSleep = model.live.$backfilling
-            .filter { !$0 }
-            .map { _ in () }
-            .merge(with: Just(()).delay(for: .seconds(Self.maxSyncGraceSeconds), scheduler: RunLoop.main))
-            .first()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
+            "Asleep within \(Int(Self.maxSyncGraceSeconds)) s: letting the strap finish syncing first"))
+        let deadline = Date().addingTimeInterval(Self.maxSyncGraceSeconds)
+        graceTask = UIApplication.shared.beginBackgroundTask(withName: "noop.syncBeforeSleep") { [weak self] in
+            // iOS is taking the time back early: sleep now rather than be suspended still connected.
+            MainActor.assumeIsolated {
                 self?.pendingSleep = nil
                 self?.sleepIfStillWanted()
+                self?.endGraceTask()
             }
+        }
+        pendingSleep = Timer.publish(every: 2, on: .main, in: .common)
+            .autoconnect()
+            .filter { [weak self] now in
+                // Timer.publish on the main run loop delivers on the main thread.
+                MainActor.assumeIsolated {
+                    guard let self, let model = self.model else { return true }
+                    return now >= deadline || self.syncDone(model)
+                }
+            }
+            .first()
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.pendingSleep = nil
+                    self?.sleepIfStillWanted()
+                    self?.endGraceTask()
+                }
+            }
+    }
+
+    private func endGraceTask() {
+        guard graceTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(graceTask)
+        graceTask = .invalid
+    }
+
+    private func syncDone(_ model: AppModel) -> Bool {
+        !model.live.backfilling && (model.live.lastSyncedAt ?? 0) >= openedAt
     }
 
     private func sleepIfStillWanted() {
