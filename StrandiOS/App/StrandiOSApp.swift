@@ -161,6 +161,8 @@ struct StrandiOSApp: App {
             noopDeviceId: model.deviceId
         )
         _health = StateObject(wrappedValue: bridge)
+        // Experimental self-hosted push: sends after each completed sync, only when the user turned it on.
+        SelfHostedPushClient.shared.attach(model: model)
         let dormancy = BackgroundDormancy()
         dormancy.attach(model: model, health: bridge)
         _dormancy = State(initialValue: dormancy)

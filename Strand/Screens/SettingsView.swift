@@ -1766,6 +1766,22 @@ struct SettingsView: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                rowDivider
+                // Experimental one-way copy to a server the user runs (noopzonedocker). Default off.
+                NavigationLink(destination: SelfHostedPushView()) {
+                    HStack {
+                        Text("Self-hosted server")
+                            .font(StrandFont.body)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LiquidPressStyle())
             }
         }
     }
