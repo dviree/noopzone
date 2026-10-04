@@ -629,16 +629,32 @@ private struct TargetZoneCoachCard: View {
             case .rest: return String(localized: "REST \(phase.round)/\(plan.rounds - 1)")
             }
         }()
-        HStack(alignment: .firstTextBaseline) {
-            Text(phaseTitle)
-                .font(StrandFont.headline)
-                .foregroundStyle(statusTint)
-            Spacer()
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(phaseTitle)
+                    .font(StrandFont.headline)
+                    .foregroundStyle(statusTint)
+                Spacer()
+                if !coach.intervalsDone {
+                    // Time left in THIS block, the number that matters mid-interval.
+                    Text(ActiveWorkoutClock.clock(coach.phaseRemaining))
+                        .font(StrandFont.number(40)).monospacedDigit()
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .contentTransition(.numericText())
+                }
+            }
             if !coach.intervalsDone {
-                Text(ActiveWorkoutClock.clock(coach.phaseRemaining))
-                    .font(StrandFont.number(28)).monospacedDigit()
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .contentTransition(.numericText())
+                // And the whole session, so "how long until I'm done" needs no arithmetic.
+                HStack {
+                    Text("TOTAL LEFT")
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                    Spacer()
+                    Text(ActiveWorkoutClock.clock(coach.sessionRemaining))
+                        .font(StrandFont.captionNumber).monospacedDigit()
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .contentTransition(.numericText())
+                }
             }
         }
         .accessibilityElement(children: .combine)

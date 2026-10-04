@@ -124,6 +124,8 @@ final class TargetZoneCoachRunner: ObservableObject {
     @Published private(set) var phase: IntervalPlan.Phase?
     /// Whole seconds left in the current phase.
     @Published private(set) var phaseRemaining: Int = 0
+    /// Whole seconds left in the whole interval session (to the end of the last work block).
+    @Published private(set) var sessionRemaining: Int = 0
     /// True once every work block of the plan has run.
     @Published private(set) var intervalsDone = false
 
@@ -199,6 +201,7 @@ final class TargetZoneCoachRunner: ObservableObject {
         if plan != nil { plan = nil }
         if phase != nil { phase = nil }
         if phaseRemaining != 0 { phaseRemaining = 0 }
+        if sessionRemaining != 0 { sessionRemaining = 0 }
         if intervalsDone { intervalsDone = false }
     }
 
@@ -220,6 +223,8 @@ final class TargetZoneCoachRunner: ObservableObject {
             if phase != current { phase = current }
             let left = Int(current?.remaining(at: elapsed).rounded(.up) ?? 0)
             if phaseRemaining != left { phaseRemaining = left }
+            let total = Int(max(0, plan.totalSeconds - max(0, elapsed)).rounded(.up))
+            if sessionRemaining != total { sessionRemaining = total }
             if intervalsDone != (index == nil) { intervalsDone = index == nil }
 
             // Rest and after the last block: no zone coaching at all, only the time.
