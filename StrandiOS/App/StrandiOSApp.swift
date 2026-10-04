@@ -163,6 +163,8 @@ struct StrandiOSApp: App {
         _health = StateObject(wrappedValue: bridge)
         // Experimental self-hosted push: sends after each completed sync, only when the user turned it on.
         SelfHostedPushClient.shared.attach(model: model)
+        // Strap and phone battery at the start and end of every workout (More › Logs › Battery).
+        WorkoutBatteryLog.shared.attach(model: model)
         let dormancy = BackgroundDormancy()
         dormancy.attach(model: model, health: bridge)
         _dormancy = State(initialValue: dormancy)
