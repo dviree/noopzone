@@ -118,6 +118,8 @@ struct StrandiOSApp: App {
         _liftActivity = State(initialValue: liftActivity)
         // The live heart rate banner makes room only for the Lift Log banner actually on screen, which carries the
         // heart rate itself — not for a sync (`LiveHRBannerLifecycle`).
+        // The live-HR banner is off by default now; switch it off once for installs that had it on.
+        UnitPrefs.turnLiveActivityOffOnce()
         let liveActivity = LiveActivityController()
         liveActivity.follow(model, standsAside: { [weak liftActivity] in liftActivity?.isShowing == true })
         _liveActivity = State(initialValue: liveActivity)

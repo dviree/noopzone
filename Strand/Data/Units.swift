@@ -116,13 +116,26 @@ enum UnitPrefs {
     }
 
     /// Whether the live-HR Live Activity (Lock Screen + Dynamic Island) may show, iOS only (#336).
-    ///
-    /// Removed in this build: always false, and its Settings switch is gone. `LiveActivityController` still
-    /// follows the strap, but with the switch off `LiveHRBannerLifecycle` only ever ENDS a banner, so one an
-    /// earlier version left on the Lock Screen is cleared at the next launch and none is started again. Any
-    /// stored `liveActivity.enabled` value is ignored. (The Lift Log and strap-sync Live Activities are separate
-    /// and unaffected.)
-    static func liveActivityEnabled() -> Bool { false }
+    /// Defaults to OFF: a heart-rate banner appearing every time NOOP opens is opt-in, turned on in
+    /// Settings → Live notifications. An unset key reads false, matching the `@AppStorage(...) = false`
+    /// binding there; a wearer who switched it on explicitly keeps it on.
+    static let liveActivityKey = "liveActivity.enabled"
+    static func liveActivityEnabled() -> Bool {
+        UserDefaults.standard.object(forKey: liveActivityKey) == nil
+            ? false : UserDefaults.standard.bool(forKey: liveActivityKey)
+    }
+
+    /// Marks that `turnLiveActivityOffOnce` has run on this install.
+    static let liveActivityTurnedOffKey = "liveActivity.turnedOffOnce"
+
+    /// Turn the live-HR banner off once per install, so a wearer who had it on from the old default-on
+    /// behaviour sees it gone after updating. Runs a single time: switching it back on in Settings afterwards
+    /// sticks. Called at launch, before the banner controller first reads the switch.
+    static func turnLiveActivityOffOnce(_ d: UserDefaults = .standard) {
+        guard !d.bool(forKey: liveActivityTurnedOffKey) else { return }
+        d.set(false, forKey: liveActivityKey)
+        d.set(true, forKey: liveActivityTurnedOffKey)
+    }
 
     /// Whether the strap-sync Live Activity may show, iOS only. Its own switch, deliberately separate from
     /// the live-HR one above: wanting a sync readout says nothing about wanting a heart rate on the Lock
