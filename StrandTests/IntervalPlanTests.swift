@@ -51,6 +51,17 @@ final class IntervalPlanTests: XCTestCase {
         XCTAssertEqual(TargetZoneCues.buzzes(for: .done).map { $0.loops }, [5])
     }
 
+    func testSpokenCuesAndTheirSoundFiles() {
+        XCTAssertEqual(TargetZoneNotifier.voicePhrase(for: .below), "Raise")
+        XCTAssertEqual(TargetZoneNotifier.voicePhrase(for: .enteredZone), "In the zone")
+        XCTAssertEqual(TargetZoneNotifier.voicePhrase(for: .above), "Lower")
+        XCTAssertEqual(TargetZoneNotifier.intervalVoicePhrase(for: .go(round: 2)), "Go")
+        XCTAssertEqual(TargetZoneNotifier.intervalVoicePhrase(for: .rest(round: 2)), "Rest")
+        XCTAssertEqual(TargetZoneNotifier.intervalVoicePhrase(for: .done), "Done")
+        XCTAssertEqual(TargetZoneNotifier.voiceFileName(for: "In the zone"), "zone-voice-in-the-zone.caf")
+        XCTAssertEqual(TargetZoneNotifier.voiceFileName(for: "Raise"), "zone-voice-raise.caf")
+    }
+
     func testIntervalSoundsAndCopy() {
         XCTAssertEqual(TargetZoneNotifier.intervalSoundName(for: .go(round: 1)), "zone-go.wav")
         XCTAssertEqual(TargetZoneNotifier.intervalSoundName(for: .rest(round: 1)), "zone-rest.wav")

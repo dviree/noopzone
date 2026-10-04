@@ -364,6 +364,8 @@ struct StrandiOSApp: App {
             if phase == .active {
                 // Wake the strap link first, so the foreground sync below has a strap to talk to.
                 dormancy.appBecameActive()
+                // Render the spoken zone cues once (a no-op once their sound files exist).
+                ZoneVoiceCues.prepare()
                 // Back in front: wake the decorative motion rather than open on a still screen.
                 NoopMotionState.shared.noteInteraction()
                 CoachBriefScheduler.activateIfEnabled { await model.coach.generateBrief() }

@@ -27,6 +27,7 @@ struct PhoneNotificationsView: View {
     @AppStorage(UnitPrefs.liftLiveActivityKey) private var liftLiveActivityEnabled = true
     @AppStorage(UnitPrefs.syncLiveActivityKey) private var syncLiveActivityEnabled = true
     @AppStorage("noop.coachEnabled") private var coachEnabled = true
+    @AppStorage(ZoneVoiceCues.enabledKey) private var voiceCues = true
 
     /// iOS's own answer to "may NOOP notify?", re-read on appear and on every return to the app (the user
     /// changes it in the Settings app). Nil until the first read lands.
@@ -110,6 +111,13 @@ struct PhoneNotificationsView: View {
             NotificationToggleRow(label: "Phone notifications",
                                   help: "Mirror each target-zone cue as a notification on this device. A new one replaces the last.",
                                   isOn: $behavior.targetZoneNotifications)
+            rowDivider
+            NotificationToggleRow(label: "Voice cues",
+                                  help: "Say \"Raise\", \"In the zone\" or \"Lower\", and \"Go\", \"Rest\" and \"Done\" in 4×4, instead of a tone. Plays with the notification, also in headphones.",
+                                  isOn: $voiceCues)
+                .onChangeCompat(of: voiceCues) { on in
+                    if on { ZoneVoiceCues.prepare() }
+                }
             rowDivider
             NotificationToggleRow(label: "Notify when optimal strain is reached",
                                   help: "Posts after your strap syncs and NOOP scores the day — not the exact second you cross it. At most once per day.",

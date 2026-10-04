@@ -43,6 +43,30 @@ enum TargetZoneNotifier {
         }
     }
 
+    /// The spoken cue for a feedback (Settings › Notifications › Voice cues). English on purpose: short,
+    /// fixed words recorded once by the system voice, so the same file plays every time.
+    static func voicePhrase(for feedback: TargetZoneCoach.Feedback) -> String {
+        switch feedback {
+        case .below: return "Raise"
+        case .enteredZone: return "In the zone"
+        case .above: return "Lower"
+        }
+    }
+
+    /// The spoken cue for an interval phase change.
+    static func intervalVoicePhrase(for cue: TargetZoneCues.IntervalCue) -> String {
+        switch cue {
+        case .go: return "Go"
+        case .rest: return "Rest"
+        case .done: return "Done"
+        }
+    }
+
+    /// The notification-sound file a phrase is rendered to, in Library/Sounds.
+    static func voiceFileName(for phrase: String) -> String {
+        "zone-voice-" + phrase.lowercased().replacingOccurrences(of: " ", with: "-") + ".caf"
+    }
+
     /// Title + body for an interval phase change.
     static func intervalCopy(_ cue: TargetZoneCues.IntervalCue, zone: Int,
                              plan: IntervalPlan) -> (title: String, body: String) {
@@ -94,7 +118,8 @@ enum TargetZoneNotifier {
             content.title = text.title
             content.body = text.body
             // iOS falls back to the default sound if the named file is missing from the bundle.
-            content.sound = UNNotificationSound(named: UNNotificationSoundName(soundName(for: feedback)))
+            let name = ZoneVoiceCues.readySoundName(for: voicePhrase(for: feedback)) ?? soundName(for: feedback)
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(name))
             content.threadIdentifier = identifier
             center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
         }
@@ -106,7 +131,7 @@ enum TargetZoneNotifier {
     static func postInterval(_ cue: TargetZoneCues.IntervalCue, zone: Int, plan: IntervalPlan) {
         #if os(iOS)
         let text = intervalCopy(cue, zone: zone, plan: plan)
-        let sound = intervalSoundName(for: cue)
+        let sound = ZoneVoiceCues.readySoundName(for: intervalVoicePhrase(for: cue)) ?? intervalSoundName(for: cue)
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized
