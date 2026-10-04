@@ -117,9 +117,8 @@ struct SettingsView: View {
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
     @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
-    // Live-HR Live Activity (Lock Screen + Dynamic Island), iOS only (#336). Default on.
-    @AppStorage(UnitPrefs.liveActivityKey) private var liveActivityEnabled = false
-    // Strap-sync Live Activity, iOS only. Separate from the live-HR one on purpose. Default on.
+    // The live-HR Live Activity (#336) is removed in this build, so it has no switch here.
+    // Strap-sync Live Activity, iOS only. Default on.
     @AppStorage(UnitPrefs.syncLiveActivityKey) private var syncLiveActivityEnabled = true
     @AppStorage(UnitPrefs.liftLiveActivityKey) private var liftLiveActivityEnabled = true
     @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
@@ -1570,9 +1569,6 @@ struct SettingsView: View {
             blurb: "Shown on the Lock Screen and in the Dynamic Island. A switch only hides one: NOOP still measures and records everything."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
-                liveNotificationSwitch("Live heart rate", isOn: $liveActivityEnabled,
-                                       detail: "While the strap is connected.")
-                rowDivider
                 liveNotificationSwitch("Lift Log session", isOn: $liftLiveActivityEnabled,
                                        detail: "Your set, rest and heart rate, and the Lock Screen light-up on a double-tap.")
                 rowDivider

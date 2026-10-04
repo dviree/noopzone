@@ -116,14 +116,13 @@ enum UnitPrefs {
     }
 
     /// Whether the live-HR Live Activity (Lock Screen + Dynamic Island) may show, iOS only (#336).
-    /// Defaults to OFF: a heart-rate banner appearing every time NOOP opens is opt-in, turned on in
-    /// Settings → Live notifications. An unset key reads false, matching the `@AppStorage(...) = false`
-    /// binding there; a wearer who switched it on explicitly keeps it on.
-    static let liveActivityKey = "liveActivity.enabled"
-    static func liveActivityEnabled() -> Bool {
-        UserDefaults.standard.object(forKey: liveActivityKey) == nil
-            ? false : UserDefaults.standard.bool(forKey: liveActivityKey)
-    }
+    ///
+    /// Removed in this build: always false, and its Settings switch is gone. `LiveActivityController` still
+    /// follows the strap, but with the switch off `LiveHRBannerLifecycle` only ever ENDS a banner, so one an
+    /// earlier version left on the Lock Screen is cleared at the next launch and none is started again. Any
+    /// stored `liveActivity.enabled` value is ignored. (The Lift Log and strap-sync Live Activities are separate
+    /// and unaffected.)
+    static func liveActivityEnabled() -> Bool { false }
 
     /// Whether the strap-sync Live Activity may show, iOS only. Its own switch, deliberately separate from
     /// the live-HR one above: wanting a sync readout says nothing about wanting a heart rate on the Lock
