@@ -27,6 +27,8 @@ struct StrandiOSApp: App {
     /// NOOP's live heart rate banner. Built in `init` and fed from there (`LiveActivityController.follow`), not from
     /// a view: a process iOS starts in the background need not build one.
     @State private var liveActivity: LiveActivityController
+    /// Sleeps the app while it is in the background with no workout running (`BackgroundDormancy`).
+    @State private var dormancy: BackgroundDormancy
     /// The Lift Log session's own Live Activity. Separate from the live-HR one above: while a gym
     /// session is open this is the banner that matters (it carries the heart rate too), so the HR
     /// activity is suppressed rather than stacked beside it. Built in `init`, where the strap log it
@@ -148,6 +150,8 @@ struct StrandiOSApp: App {
         // #2556: its own wake, because every existing one is conditional on something the missing strap
         // makes false. Registered unconditionally and re-armed from inside its own handler.
         StaleBatteryBackgroundScheduler.register(perform: { [weak model] in
+            // Asleep, the strap is released on purpose: its silence is not news.
+            guard model?.ble.dormant != true else { return }
             await model?.checkStrapNotSeen()
         })
         StaleBatteryBackgroundScheduler.schedule()
@@ -157,6 +161,9 @@ struct StrandiOSApp: App {
             noopDeviceId: model.deviceId
         )
         _health = StateObject(wrappedValue: bridge)
+        let dormancy = BackgroundDormancy()
+        dormancy.attach(model: model, health: bridge)
+        _dormancy = State(initialValue: dormancy)
         // Register a separate, always-on-while-authorized refresh task for Apple Health write-back.
         // The operation is write-only and bounded to the bridge's recent window; fresh BLE offloads still
         // use the immediate hook below. BGTaskScheduler chooses the actual wake time.
@@ -351,6 +358,8 @@ struct StrandiOSApp: App {
         // safe no-op until the user opts in.
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
+                // Wake the strap link first, so the foreground sync below has a strap to talk to.
+                dormancy.appBecameActive()
                 // Back in front: wake the decorative motion rather than open on a still screen.
                 NoopMotionState.shared.noteInteraction()
                 CoachBriefScheduler.activateIfEnabled { await model.coach.generateBrief() }
@@ -416,6 +425,9 @@ struct StrandiOSApp: App {
                 // into Apple Health. Gated inside writeIfEnabled on the opt-in default (OFF) — a
                 // no-op until the user turns on Shortcuts Export.
                 Task { await ShortcutHealthExport.writeIfEnabled(repo: model.repo) }
+                // Last: with no workout running this releases the strap and cancels the background
+                // requests submitted above, so nothing wakes the app until it is opened again.
+                dormancy.appEnteredBackground()
             }
         }
     }

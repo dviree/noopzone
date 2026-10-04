@@ -357,6 +357,15 @@ final class HealthKitBridge: ObservableObject {
         }
     }
 
+    /// Stop the observers and HealthKit's background delivery, so new Health data no longer wakes the app
+    /// while it is asleep (`BackgroundDormancy`). `enableLiveDelivery()` re-arms both; a foreground open
+    /// catches up through the ordinary sync, so nothing written meanwhile is missed.
+    func suspendLiveDelivery() {
+        for query in observerQueries.values { store.stop(query) }
+        observerQueries.removeAll()
+        store.disableAllBackgroundDelivery { _, _ in }
+    }
+
     /// Drive an incremental sync off an observer wake. We use an `HKAnchoredObjectQuery` per type to
     /// learn the span of days touched since we last looked (persisting the anchor so the same samples
     /// aren't walked twice and nothing between wakes is missed), then re-aggregate just that day window

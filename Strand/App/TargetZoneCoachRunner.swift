@@ -137,6 +137,8 @@ final class TargetZoneCoachRunner: ObservableObject {
     private var timer: Timer?
     private var sinks = Set<AnyCancellable>()
     private weak var model: AppModel?
+    /// Whether this session took a realtime-HR arm in `start`, so `stop` releases exactly one.
+    private var holdsRealtime = false
     /// When the in-flight pulse walk finishes; a cue arriving before then skips the wrist (never queued).
     private var hapticWalkUntil = Date.distantPast
     /// The phase index the last tick saw; `.none` (outer nil) until the first tick.
@@ -161,6 +163,10 @@ final class TargetZoneCoachRunner: ObservableObject {
         self.config = config
         self.plan = plan
         engine = TargetZoneCoach(config: config)
+        // The coach holds its own realtime-HR arm for the whole session (a WHOOP 5.0/MG only streams live
+        // heart rate while armed), so the cues do not depend on the workout screen staying on top.
+        model.startRealtimeHR()
+        holdsRealtime = true
         let mode = plan.map { " as \($0.rounds)x\(Int($0.workSeconds / 60)) intervals" } ?? ""
         model.live.append(log: AppModel.stamped(
             "Zone training: coaching Zone \(zone) (\(Int(config.lowerBpm))-\(Int(config.upperBpm)) bpm)\(mode)"))
@@ -185,6 +191,10 @@ final class TargetZoneCoachRunner: ObservableObject {
 
     /// Stop coaching and clear the published state. Safe to call when not running.
     func stop() {
+        if holdsRealtime {
+            holdsRealtime = false
+            model?.stopRealtimeHR()
+        }
         timer?.invalidate()
         timer = nil
         sinks.removeAll()
