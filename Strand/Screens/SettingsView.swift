@@ -260,6 +260,8 @@ struct SettingsView: View {
                 unitsCard.staggeredAppear(index: 1)
                 appearanceCard.staggeredAppear(index: 2)
                 strapCard.staggeredAppear(index: 3)
+                // Sharing the live heart rate with gym gear / Zwift / a Garmin (moved from Data Sources).
+                BroadcastHeartRateSection().staggeredAppear(index: 3)
                 #if os(iOS)
                 liveNotificationsCard.staggeredAppear(index: 3)
                 #endif

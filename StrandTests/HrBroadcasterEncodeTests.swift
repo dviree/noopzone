@@ -55,8 +55,8 @@ final class HrBroadcasterEncodeTests: XCTestCase {
 
     // MARK: - bind(to:) is idempotent (the duplicate-notification leak)
 
-    /// `bind(to:)`'s only call site is `DataSourcesView.onAppear`, which fires on EVERY appearance — every
-    /// tab switch back to Data Sources — while the broadcaster is a `@StateObject` that outlives all of
+    /// `bind(to:)`'s only call site is `BroadcastHeartRateSection.onAppear` (Settings), which fires on EVERY appearance — every
+    /// return to Settings — while the broadcaster is a `@StateObject` that outlives all of
     /// them. Each bind used to append another sink, so a user who had visited the screen N times sent N
     /// duplicate 0x2A37 notifications per heartbeat. Binding must therefore be idempotent.
     func testRepeatedBindLeavesExactlyOneSubscription() {
