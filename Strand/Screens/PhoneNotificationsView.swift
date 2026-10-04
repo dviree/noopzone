@@ -113,7 +113,7 @@ struct PhoneNotificationsView: View {
                                   isOn: $behavior.targetZoneNotifications)
             rowDivider
             NotificationToggleRow(label: "Voice cues",
-                                  help: "Say \"Raise\", \"In the zone\" or \"Lower\", and \"Go\", \"Rest\" and \"Done\" in 4×4, instead of a tone. Plays with the notification, also in headphones.",
+                                  help: "Say \"Raise\" or \"Lower\", and \"Go\", \"Rest\" and \"Done\" in 4×4, instead of a tone. Plays with the notification, also in headphones.",
                                   isOn: $voiceCues)
                 .onChangeCompat(of: voiceCues) { on in
                     if on { ZoneVoiceCues.prepare() }

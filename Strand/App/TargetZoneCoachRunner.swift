@@ -69,6 +69,13 @@ enum TargetZoneCues {
         }
     }
 
+    /// Whether a feedback posts a phone notification (tone or voice). Reaching the zone does not: hearing
+    /// "In the zone" every time it settles back in was more noise than help. The wrist still gets its single
+    /// light tap, and the last "Raise"/"Lower" notification is cleared so it does not linger.
+    static func notifies(_ feedback: TargetZoneCoach.Feedback) -> Bool {
+        feedback != .enteredZone
+    }
+
     /// The cue at an interval phase change.
     enum IntervalCue: Equatable {
         case go(round: Int)
@@ -302,7 +309,11 @@ final class TargetZoneCoachRunner: ObservableObject {
         let wristOn = HapticPrefs.enabled(HapticPrefs.workout)
         let walked = wristOn ? walk(TargetZoneCues.pulses(for: feedback), model: model) : false
         if notify {
-            TargetZoneNotifier.post(feedback, zone: zone)
+            if TargetZoneCues.notifies(feedback) {
+                TargetZoneNotifier.post(feedback, zone: zone)
+            } else {
+                TargetZoneNotifier.clear()
+            }
         }
         // Rare-event evidence, always on: one line per cue (a few per workout), saying only what this side
         // did — a buzz REQUESTED is not a buzz felt, and `send` logs its own refusal if the link is down.

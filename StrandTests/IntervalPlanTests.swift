@@ -62,6 +62,12 @@ final class IntervalPlanTests: XCTestCase {
         XCTAssertEqual(TargetZoneNotifier.voiceFileName(for: "Raise"), "zone-voice-raise.caf")
     }
 
+    func testReachingTheZoneIsSilentOnThePhone() {
+        XCTAssertTrue(TargetZoneCues.notifies(.below))
+        XCTAssertTrue(TargetZoneCues.notifies(.above))
+        XCTAssertFalse(TargetZoneCues.notifies(.enteredZone))
+    }
+
     func testIntervalSoundsAndCopy() {
         XCTAssertEqual(TargetZoneNotifier.intervalSoundName(for: .go(round: 1)), "zone-go.wav")
         XCTAssertEqual(TargetZoneNotifier.intervalSoundName(for: .rest(round: 1)), "zone-rest.wav")

@@ -17,7 +17,7 @@ enum ZoneVoiceCues {
     static var enabled: Bool { UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true }
 
     static var allPhrases: [String] {
-        [TargetZoneCoach.Feedback.below, .enteredZone, .above].map(TargetZoneNotifier.voicePhrase(for:))
+        [TargetZoneCoach.Feedback.below, .above].map(TargetZoneNotifier.voicePhrase(for:))
             + [TargetZoneCues.IntervalCue.go(round: 1), .rest(round: 1), .done]
                 .map(TargetZoneNotifier.intervalVoicePhrase(for:))
     }
