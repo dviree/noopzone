@@ -1154,6 +1154,26 @@ struct SettingsView: View {
                     CoachBriefScheduler.applyMasterSwitch(on)
                 }
                 #if os(iOS)
+                // On iPhone the Coach is no longer a tab (Workouts took its slot), so this is where it opens.
+                if coachEnabled {
+                    rowDivider
+                    NavigationLink(destination: CoachView()) {
+                        HStack {
+                            Text("Open AI Coach")
+                                .font(StrandFont.body)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(StrandPalette.textTertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .accessibilityLabel("Open AI Coach")
+                }
+                #endif
+                #if os(iOS)
                 rowDivider
                 // #1841: the same preference Android drives its own bar with, by name and meaning. Here
                 // the SYSTEM owns the behaviour — iOS 26 minimises the tab bar to a pill on scroll rather

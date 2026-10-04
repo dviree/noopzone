@@ -2471,6 +2471,13 @@ private struct LiquidLiveHR: View {
     var animated: Bool
 
     @EnvironmentObject private var live: LiveState
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
+    /// Whether this card holds one of AppModel's realtime-HR arms (`startRealtimeHR`). A WHOOP 5.0/MG only
+    /// streams live heart rate while something asks for it, and Today never did, so the card showed the
+    /// 5-minute average instead of the live number. Held only while the card is on screen AND the app is in
+    /// the foreground, so a backgrounded Today does not keep the strap streaming; balanced exactly once.
+    @State private var holdsRealtime = false
     @State private var samples: [Double] = []
     @State private var beat = false
     @State private var scrubX: CGFloat?
@@ -2522,7 +2529,7 @@ private struct LiquidLiveHR: View {
                         .accessibilityHidden(true)
                 }
                 if let hr = bigBpm {
-                    (Text("\(hr)").font(StrandFont.rounded(22)).monospacedDigit()
+                    (Text("\(hr)").font(StrandFont.rounded(34, weight: .semibold)).monospacedDigit()
                         + Text(" bpm").font(StrandFont.caption))
                         .foregroundStyle(tint)
                         .contentTransition(.numericText())
@@ -2574,7 +2581,12 @@ private struct LiquidLiveHR: View {
                     .padding(.vertical, 24)
             }
         }
-        .onAppear { if samples.isEmpty, let hr = live.heartRate, hr > 0 { samples = [Double(hr)] } }
+        .onAppear {
+            if samples.isEmpty, let hr = live.heartRate, hr > 0 { samples = [Double(hr)] }
+            setRealtime(scenePhase == .active)
+        }
+        .onDisappear { setRealtime(false) }
+        .onChangeCompat(of: scenePhase) { phase in setRealtime(phase == .active) }
         .onChangeCompat(of: live.heartRate) { hr in
             // No live heart rate (the strap off the wrist, or gone): drop the trace, so the card stops calling an
             // old one "Live" and shows today's average under its own label.
@@ -2595,6 +2607,13 @@ private struct LiquidLiveHR: View {
 
     /// Uses the thread renderer's ten-point inset and equal-distance sample positions, so the
     /// readout points to the value actually drawn under the finger even for a sparse banked trace.
+    /// Take or release this card's realtime-HR arm, only on a change, so starts and stops always balance.
+    private func setRealtime(_ on: Bool) {
+        guard on != holdsRealtime else { return }
+        holdsRealtime = on
+        if on { model.startRealtimeHR() } else { model.stopRealtimeHR() }
+    }
+
     private var scrubReadout: some View {
         GeometryReader { geometry in
             if let scrubX, series.count >= 2 {
