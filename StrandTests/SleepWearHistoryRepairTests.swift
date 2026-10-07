@@ -43,6 +43,14 @@ final class SleepWearHistoryRepairTests: XCTestCase {
     }
 
     func testRepairsOlderThan21DaysPersistsAndRunsOnlyOnce() async throws {
+        try await verifyHistoryRepair(queueForcedRescore: false)
+    }
+
+    func testQueuedForcedRescoreCompletesRepairAndReturnsToRecentWindow() async throws {
+        try await verifyHistoryRepair(queueForcedRescore: true)
+    }
+
+    private func verifyHistoryRepair(queueForcedRescore: Bool) async throws {
         try await withPreferences {
             let store = try await WhoopStore.inMemory()
             let source = "my-whoop"
@@ -75,15 +83,42 @@ final class SleepWearHistoryRepairTests: XCTestCase {
             let repo = Repository(deviceId: source)
             repo.setStoreForTesting(store)
             let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: source)
+            defer { engine.diagnosticSink = nil }
             var triggers = 0
+            var completedPasses = 0
+            var queuedWasObserved = false
+            var queuedCall: Task<Void, Never>?
+            let followUpFinished = XCTestExpectation(description: "Queued recent pass completed")
             engine.diagnosticSink = { line, _ in
-                if line.contains("trigger=sleep-wear-history-repair") { triggers += 1 }
+                if line.contains("trigger=sleep-wear-history-repair") {
+                    triggers += 1
+                    if queueForcedRescore, queuedCall == nil {
+                        queuedCall = Task { @MainActor in
+                            await engine.analyzeRecent(force: true)
+                        }
+                    }
+                }
+                if line.contains("queued behind a 40-day pass") { queuedWasObserved = true }
+                if line.contains("re-score: done") {
+                    completedPasses += 1
+                    if completedPasses == 3 { followUpFinished.fulfill() }
+                }
             }
             // The normal recent pass cannot repair this older night.
             await engine.analyzeRecent(maxDays: 21)
             let before = try await store.sleepSessions(deviceId: source + "-noop", from: dayStart, to: dayStart + 86400, limit: 100)
             XCTAssertTrue(before.isEmpty)
             await engine.runSleepWearRescoreIfNeeded(historyDays: 40)
+            // Assert before yielding to the queued pass: only the repair itself may mark its flags.
+            XCTAssertTrue(UserDefaults.standard.bool(forKey: IntelligenceEngine.sleepWearRescoreFlagKey))
+            XCTAssertTrue(UserDefaults.standard.bool(forKey: IntelligenceEngine.effortRescoreFlagKey))
+            if queueForcedRescore {
+                await queuedCall?.value
+                XCTAssertTrue(queuedWasObserved, "The forced update must actually overlap the repair")
+                await fulfillment(of: [followUpFinished], timeout: 30)
+                XCTAssertFalse(engine.results.contains { $0.day == AnalyticsEngine.dayString(dayStart, offsetSec: tz) },
+                    "The queued recent pass must not repeat the older-than-21-day repair")
+            }
             let after = try await store.sleepSessions(deviceId: source + "-noop", from: dayStart, to: dayStart + 86400, limit: 100)
             XCTAssertEqual(after.count, 1)
             let day = AnalyticsEngine.dayString(dayStart, offsetSec: tz)

@@ -332,18 +332,18 @@ anonymous, offline, sideloaded project — not a gap to fill with more gates.
   matter most (protocol/analytics math, storage, i18n) without a device or an app build. The check
   names you see are JOB names and do not resemble the workflow names; the table in the root
   [CONTRIBUTING.md](../CONTRIBUTING.md#what-ci-checks) maps them.
-- **Disabled by design — you build the app yourself:** `app-build.yml` (app-target compile, iOS needs
-  `macos-26`) is **off**. So a compile error in **app-target** code (SwiftUI Views, `BLEManager`,
-  `Repository`, a Compose screen) passes every default check — `android.yml` builds and unit-tests the
-  Android app but nothing compiles the Apple app target. Before you push app-layer changes, compile
-  locally — `xcodebuild … build` / `./gradlew compileFullDebugKotlin` — or dispatch `app-build.yml`
-  on demand.
+- **On relevant PRs:** `app-build.yml` is active and path-filtered to the Apple app/test targets,
+  `Packages/**`, `project.yml` and its own workflow file. It compiles `Strand` on `macos-15` and
+  `NOOPiOS` on `macos-26` (for the iOS 26 SDK), and runs `StrandTests` on the macOS leg; the iOS leg
+  is compile-only. Before concluding an app-layer change is validated, build locally or verify the
+  corresponding app checks passed on the current PR head. Package tests alone do not compile Apple
+  app targets; Android's app compile and unit tests are covered by `android.yml`.
 - **Gated at release, not per PR:** Android release lint (`lintVitalFullRelease`) runs inside
   `assembleFullRelease` in the staging/release builds, so lint-fatal issues (e.g. an
   `ExtraTranslation` in a `values-<lang>` file) surface there. Run `./gradlew lintVitalFullRelease`
   locally before a release if you touched `res/`.
-- **On demand:** `app-build.yml` also runs the `StrandTests` macOS integration suite; dispatch it when
-  you change app-target Swift that no package test covers.
+- **On demand:** `app-build.yml` also accepts a manual dispatch. It has no push trigger, so use this
+  for a direct non-release commit to `main` or an explicit PR build probe.
 - **Absent on purpose:** dependency/vuln scanning and Android instrumentation/connected tests. The
   dependency set is small and pinned, there is no server or telemetry, and BLE/offload behavior is
   validated **on a real strap** — compile-success proves nothing about connection behavior.

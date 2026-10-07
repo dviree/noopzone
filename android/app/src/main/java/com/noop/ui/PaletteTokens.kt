@@ -340,10 +340,12 @@ enum class AccentColor(val storageValue: String, val label: String) {
             entries.firstOrNull { it.storageValue == raw } ?: MINT
 
         /** Parse `#RRGGBB` to a Color, falling back to [fallback] on any malformed value. */
-        fun parseHex(hex: String, fallback: Color): Color = try {
-            Color(("FF" + hex.removePrefix("#").trim()).toLong(16))
-        } catch (e: Exception) {
-            fallback
+        fun parseHex(hex: String, fallback: Color): Color {
+            val rgb = hex.trim().removePrefix("#")
+            if (rgb.length != 6 || rgb.any { it !in '0'..'9' && it !in 'a'..'f' && it !in 'A'..'F' }) {
+                return fallback
+            }
+            return Color(("FF" + rgb).toLong(16))
         }
 
         /** Blend a hex toward white by [amount] (0..1) — the deterministic hover for a custom accent. */
