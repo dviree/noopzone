@@ -291,6 +291,567 @@
       "identity_sha256": "28fa51ec52e1a418a0c8bd500cceb13c529cf8dc7e8bbe290003fe97602e6dff",
       "platform": "kotlin",
       "rationale": "Formats the reading's day for the Settings caption of the Health Connect weight sync. Apple platforms have no Health Connect, so the opt-in 'Use weight from Health Connect' profile sync exists only on Android and there is no Swift counterpart to pair with, now or later."
+    },
+    {
+      "type": "out_of_scope_twin",
+      "kind": "add-unpaired-function",
+      "identity": "kotlin\u0000android/app/src/main/java/com/noop/data/WhoopRepository.kt::importedDailyUnionFlow/3#1",
+      "identity_sha256": "a1b8ac6c0842e6925e91e66bfb292e599945dff1dcb8e5eb3080e17951c16e21",
+      "platform": "kotlin",
+      "rationale": "Swift Repository.refresh reads the same imported daily union (unionDailyMetrics) in the excluded app layer and hands it, still apart from the computed union, to ChargeBaselines.resolve (#2525); this disposition does not assert behavioral parity.",
+      "twin_path": "Strand/Data/Repository.swift"
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-file",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift",
+      "identity_sha256": "2e5e7a46e026e6c77fdb8a89340a2930e986c658c717e426af40452bb4742a4e",
+      "platform": "swift",
+      "rationale": "The target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultCooldownSec",
+      "identity_sha256": "20003cf4bf29dc45ceae233045438c7e9775baad76092b5f9666d2debc7e428e",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultDebounceSec",
+      "identity_sha256": "11abb83f522e6c94d7e915c872d6da82b84ad8c5225634315574475a437a2be8",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultHysteresisBpm",
+      "identity_sha256": "4b12d8fc410c3ca5e16d8980b8072037dfd70a41d8e646917c6afa2773d3d01c",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultMaxAccrualDtSec",
+      "identity_sha256": "0124104e8711e0c981316c5b9ec456530632889ccb0865b98bfce0db0b121813",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultMinPlausibleBpm",
+      "identity_sha256": "7bf4a8d1ca870382e6cef9133f55785346191e1142ce416e5bb5192bf0eb8114",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::defaultReminderSec",
+      "identity_sha256": "2c7ce2907c45ef2b3e4f7c330376b255e4bf25aa2fe94b109eb1817c38e44cc8",
+      "platform": "swift",
+      "rationale": "Default tuning of the target-zone coach. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::forZone/2#1",
+      "identity_sha256": "d0dfc011b53eee4500a350abfa47e0426e1f098d87a10aad9661cbc3c54fb343",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::classify/1#1",
+      "identity_sha256": "080600c5382dbcf87dcde8232f659930c5257ced3535068a56293d2fa9d698fa",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::update/2#1",
+      "identity_sha256": "123f0bc63be2c43e7c5e8a8df658b67d04218a05b538df3a846f03c5c2e7e24f",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::decideFeedback/1#1",
+      "identity_sha256": "fd06b5a96e7294eb9e23c3072240b2ba3991b73d4309e1193e30954f45755a99",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/StrandAnalytics/Sources/StrandAnalytics/TargetZoneCoach.swift::emit/2#1",
+      "identity_sha256": "663a160fbdc733e42d79915391eaabf8d7bb6fa788db4f2ef15ec3b4c96c6fb3",
+      "platform": "swift",
+      "rationale": "Part of the target-zone coach state machine. Target-zone coaching (stay in a chosen HR zone during a workout, with strap haptics and phone notifications) ships on the Apple app layer only in this change: Strand/App/TargetZoneCoachRunner.swift is the only caller, and the Android app has no target-zone runner or UI that would call a Kotlin twin. A future Android port must mirror TargetZoneCoachTests' vectors."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::k",
+      "identity_sha256": "aae904125470ca0b078574abf5bb4c5c6c1654eebbe66ef81b7fde936caa1284",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::maxBodyBytes",
+      "identity_sha256": "4245c4b4d238792bd264c1fe74f7e1888b2e14b052bdadd54f88b14334bdc588",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::maxRecords",
+      "identity_sha256": "bba871eda66c9891c37f639e9c21488be561ab57469744e8665922ce4d76d2ad",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::maxResponseBytes",
+      "identity_sha256": "4a3e53ed7a1d769267bab469226b85eb4a10775bebe88fcc7323a592de7169dd",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::maxSnapshotBytes",
+      "identity_sha256": "a867e135ffda97bb004cfe8e208be14da916958380b68ac48c620c160e374ae1",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::maxSnapshotRecords",
+      "identity_sha256": "459953e69d5b1b1fc96cf6c0c51f1c9a768defbc953c18440e4e216e50197c2f",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::uuidPlaceholder",
+      "identity_sha256": "d8cbf1cc83da7f277fcf3a861a54a5b0785e0ec3880b7e889805907017a8fbbf",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-constant",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::version",
+      "identity_sha256": "f9e2a35a30cd46252e88b42374eb4b2b8b755e2d1c93bd28c20c3d460261b4e6",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-file",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift",
+      "identity_sha256": "0595d4ad3aa25d4eb37c66443e2fedf4fbc7c651f56b6a6bdbc9b246662c6c24",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-file",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift",
+      "identity_sha256": "2c40564887863a60d9ce4e3850d3e7dd3dd5cfb66420e15e295204528ebd317f",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::member/1#1",
+      "identity_sha256": "da11bcf0ae44dec345993e900a0fd832b41d41099a337a6bbb20b5423a219b11",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::pushAppendPage/4#1",
+      "identity_sha256": "c9780b8ebe1769e8a12ebac89b8693693667e56caa8e5af7eb3143aa094beb35",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::pushDeviceIds/1#1",
+      "identity_sha256": "c3c884682c693f460a5061d1d725d49de21a5febe45f0246d4f8c0987c1fcd08",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::pushRecord/2#1",
+      "identity_sha256": "488d852835539e077c16c43736c0b1afda1e1fee7240d10bceaca5b6994d6d9a",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::pushRecord/3#1",
+      "identity_sha256": "94b41097a93b740a365d063c8daab8b975d2c1639a282fa28adccc81f0c5da95",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::pushSelectList/2#1",
+      "identity_sha256": "0f31dd6e8eea90f9cf26e619b9f3199bf6cf0301539cd1a2fd04dbf6b324c2a5",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::pushValue/2#1",
+      "identity_sha256": "433b1504d10e137809e89f7deda5d018b6f73aee9e8900078e80536a1189e6a5",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushExport.swift::pushWindowRecords/3#1",
+      "identity_sha256": "266d4afba1d8e644c417b4bc0d740cba2fe175fbbd1c18947163a6e3623d49b9",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::acknowledgementMatches/2#1",
+      "identity_sha256": "8e45e0bbc46fb57d2d6d7fedef3f5a70fad4b6b7cd1479a7077178e8308f71fd",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::appendBatch/5#1",
+      "identity_sha256": "299ccf5d1926a9c11f4a0a9ef3c7a8f5801e0f33c634895987c698df662877c9",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::appendIdentity/6#1",
+      "identity_sha256": "b38bd6f476ce964d6d5598e61b25b39994f498df3d2d10cc4ee8a6d1bd261554",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::boundsJSON/2#1",
+      "identity_sha256": "307364c1ea5ee1656e547296cc63623a1edb90c688dce563f21acb05cedf1f20",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::canonical/1#1",
+      "identity_sha256": "6e902641e9b9fbbb19a689506dd38db24848dcbf03fac89b92540bc15b590a23",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::compress/1#1",
+      "identity_sha256": "4af822dc443fcfd04069133c9995430cb71c6275bbc214a1663046beae040257",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::cursor/3#1",
+      "identity_sha256": "21ad58e3bd8a8862b66aee27eac5f0bb86dd183e3f9fc19d521d5689dff3a9b7",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::cursorJSON/1#1",
+      "identity_sha256": "5f2556dc792331b27880e9cec55a054d024cdd7eb5c391e8752575b9ddfb00d8",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::errorCode/1#1",
+      "identity_sha256": "fd48cc8361dd1fd9201f6299c9ae948f81f845092435487ec0d870f4721534dd",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::finalize/0#1",
+      "identity_sha256": "663295f65a28fba74f0f0bc156463183a9f5541dd392f1b4ddbae4c8dde7cc79",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::hex/1#1",
+      "identity_sha256": "17e87e9e3952822ef4f3a342536cd8f7b522a312169a07448d6648b7e142235f",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::hex/1#2",
+      "identity_sha256": "4d9ec4c7ebaabc717be37d1e7620855c33d92efc43c25deb968e290d37725bd4",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::ipv4/1#1",
+      "identity_sha256": "ec2240e5e52d7833c824262749a1c7c934e1b63b1af3923e6a109fa27add94dd",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::isPrivateV4/1#1",
+      "identity_sha256": "a1753cd7cd0cf240792af47b1eac5241027b4cde0d4e5ba5e6d04c44a497b5bd",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::isPrivateV6/1#1",
+      "identity_sha256": "cc987b3f4b6e2e163103bbe88ebc104bce148ff5aa88417a3ca428ce33453d09",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::keyFingerprint/3#1",
+      "identity_sha256": "6ae91a8f3fa0fedd228b3f3a1c78e42d75cac25971680708e42261d61a2e2724",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::line/1#1",
+      "identity_sha256": "5f5dbea41c1b46822bdc564510c4bfb5d6e31994a88b511caece309f7357c7f2",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::mutableIdentity/8#1",
+      "identity_sha256": "8d4461fd63de261b4318a62d89ed7177f63b1f6c26ec7eeda487e7dd983be9a2",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::object/1#1",
+      "identity_sha256": "e9d1531eb8263420d7c0c0074914b9949b252086cd964d05d78113832364cb03",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::parseCapabilities/1#1",
+      "identity_sha256": "e05e04f65c9b34be125ca5cf38f5cdf38bd92ae659ee098e59801d565b74e49d",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::quote/2#1",
+      "identity_sha256": "170cb972aed8736b25d8c066c94293a962ddf084e36e6f3bf1aa1e25b147dba4",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::recordLine/1#1",
+      "identity_sha256": "9f0d77b4f8902a09b644951e3406b833e2f32ce451a38d86d5b870c6697d74f0",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::render/3#1",
+      "identity_sha256": "15013f084aabd4b000e329930f2b41de0fb47eb5b7c5f6ba0e126420ef2165b9",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::renderValue/2#1",
+      "identity_sha256": "3cc9be499b0d89d3d85e8edd0dd1c7ac293773ebfe3fb75794cb74700f829628",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::replaceWindowBatches/5#1",
+      "identity_sha256": "6c8ae91089778fe492754f11267b6505d0eda420c2bfe19d92e53f49dc397987",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::rotr/2#1",
+      "identity_sha256": "d08ab4a42bcbba1886db24e2e83f8dea1d645150903bd8033af8e5e2d1ac2c62",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::snapshotHash/2#1",
+      "identity_sha256": "04e0af56dcb285ed40b540541de0d80bc82f6532ca032e1a49458b0bb8c18d98",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::sortedByKey/1#1",
+      "identity_sha256": "f6dc7739e10fc25ced0aefe3da82f4bd3add3c2ebc0f1c668a85494bb14a9c68",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::stableUUID/2#1",
+      "identity_sha256": "1bc2085c93458b9ecb684dc1a7ebcc3ab1e1b64ec23c672e2e741f51d0d08a35",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::update/1#1",
+      "identity_sha256": "d3fbc25c4f9b8be873ea96e489e802f2461344b6a150fe7a6e8267885c86344f",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::validate/1#1",
+      "identity_sha256": "0f1d99c1fadec0c67e66c0a487436d7445c76cb69cfe480a94f15d0f8e2f6ed4",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::validate/2#1",
+      "identity_sha256": "a26a7e76bd1d30bc11c6813d1d9dffdbbfd05b3e88ae657c6718f2e9e55ab760",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-function",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::validateUUID/2#1",
+      "identity_sha256": "ca148fe6fd72b6edf3f863574ba54bf3065a650a68ed1528b323e3bf09855e82",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-property",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::dataColumns@property#1",
+      "identity_sha256": "cc08ad7e3fd1c5b559a8b1b4853f6daf972a5586008858a7a426b63f5800de60",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-property",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::delivery@property#1",
+      "identity_sha256": "7d3ac00cdaf9bf34123c9076f503e4166e8e5c073feb6ee87333215d10f452a3",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-property",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::isAppend@property#1",
+      "identity_sha256": "15d3dc89e5c07df4379c970295efdd863edd1e63417717ae7225a10e15ca074c",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-property",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::keyColumns@property#1",
+      "identity_sha256": "4beaa9a776e5e3b6bedc270658663c95498c33894dea11649a31c08810042776",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-property",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::selectorColumn@property#1",
+      "identity_sha256": "2e19ad732098bb49c35e44267b83b3b12d73d21b1c0cb973feb0ad0093bf9a91",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
+    },
+    {
+      "type": "platform_specific",
+      "kind": "add-unpaired-property",
+      "identity": "swift\u0000Packages/WhoopStore/Sources/WhoopStore/SelfHostedPushProtocol.swift::table@property#1",
+      "identity_sha256": "ba7c2bbd8ae54cb386d5664e7251af2ebfa9b7852b9490cb5388e2433ed73584",
+      "platform": "swift",
+      "rationale": "Self-hosted push (NOOP Push Protocol 1.0, docs/PUSH_PROTOCOL.md) on the Apple side: the protocol encoder, cursor/identity helpers and the read-only GRDB projection used by the iOS client (StrandiOS/System/SelfHostedPush.swift). Android already ships its own independent implementation in android/app/src/main/java/com/noop/push (PushProtocol.kt, PushDao.kt), which is the wire-contract twin; there is no shared code to pair function by function, and the contract is pinned on each side by its own tests (SelfHostedPushTests / PushProtocolTest)."
     }
   ]
 }

@@ -106,6 +106,10 @@ final class AppModel: ObservableObject {
     /// sport: it only arms for a `WorkoutCatalog.Sport.isDistanceSport`, and only actually captures once
     /// the user grants When-In-Use location.
     let gpsRecorder = GpsWorkoutRecorder()
+    /// Target-zone coaching ("stay in Zone 2") for the active workout: runs only while a workout is recorded
+    /// AND the wearer picked a zone (`behavior.targetZone`). Observed by the live workout screen's coaching
+    /// card, so its 1 Hz time-in-zone updates re-render that card alone.
+    let targetZoneCoach = TargetZoneCoachRunner()
     /// True while the active workout is a GPS-type session (drives the End-time route persist). Mirrors
     /// Android's `ActiveWorkout.gpsEnabled`.
     private var activeWorkoutIsGps = false
@@ -356,6 +360,20 @@ final class AppModel: ObservableObject {
         }
         // HR-zone haptic coaching watches the smoothed bpm.
         $bpm.sink { [weak self] hr in self?.coachZone(hr) }.store(in: &hrCancellables)
+        // Target-zone coaching follows its setting: a Zone training start asks for notification permission,
+        // and a change during the workout (the card's picker) restarts or stops the coach. The value is
+        // passed through because @Published emits before the store is written.
+        behavior.$targetZone.dropFirst().removeDuplicates().sink { [weak self] zone in
+            guard let self else { return }
+            if TargetZonePrefs.resolve(zone) != 0, self.behavior.targetZoneNotifications {
+                TargetZoneNotifier.requestAuthorization()
+            }
+            self.syncTargetZoneCoach(zone: zone)
+        }.store(in: &hrCancellables)
+        behavior.$targetZoneNotifications.dropFirst().removeDuplicates().sink { [weak self] on in
+            guard let self, on, TargetZonePrefs.resolve(self.behavior.targetZone) != 0 else { return }
+            TargetZoneNotifier.requestAuthorization()
+        }.store(in: &hrCancellables)
         // Illness/strain early-warning recomputes when the daily history changes.
         repo.$days.sink { [weak self] days in
             self?.evaluateIllness(days)
@@ -823,9 +841,19 @@ final class AppModel: ObservableObject {
     /// name; callers that don't pick a sport get the catalogue default "Other", parity with Android's
     /// `startWorkout(sport:)`). The active card on Live then shows elapsed time, live HR and strain
     /// building; End scores + saves it under this sport. Confirms with a single buzz. (#519)
-    func startWorkout(sport: String = WorkoutCatalog.defaultSportName) {
+    ///
+    /// `targetZone` makes it a Zone training workout (2, 3 or 4): the target-zone coach runs for this
+    /// session only. Every other start (the plain Start workout, Live, Shortcuts) passes 0, so a zone picked
+    /// for one session never carries into the next. `intervals` makes it a 4×4 interval session instead
+    /// of steady coaching (always Zone 4).
+    func startWorkout(sport: String = WorkoutCatalog.defaultSportName, targetZone: Int = 0,
+                      intervals: Bool = false) {
         guard activeWorkout == nil else { return }
         lastWorkout = nil
+        // Before `activeWorkout` is set, so the setting's sink sees no workout and leaves the coach alone;
+        // `syncTargetZoneCoach()` below starts it once the session exists.
+        behavior.targetZoneIntervals = intervals
+        behavior.targetZone = intervals ? IntervalPlan.fourByFourZone : TargetZonePrefs.resolve(targetZone)
         let name = sport.trimmingCharacters(in: .whitespaces)
         let resolved = name.isEmpty ? WorkoutCatalog.defaultSportName : name
         let started = Date()
@@ -842,6 +870,7 @@ final class AppModel: ObservableObject {
         // Make the session durable from the first instant (#529): persist it now so an OS kill right
         // after Start , before any HR sample lands , can still be rehydrated + ended on relaunch.
         persistActiveWorkout()
+        syncTargetZoneCoach()
         // Workouts & GPS test mode (Test Centre): one session-start line tagged `.workouts`. Zero-cost when
         // off (the gate is one UserDefaults bool read), so the lifecycle of a missing workout is visible.
         emitWorkoutsTrace(WorkoutsTrace.sessionLine(
@@ -918,6 +947,7 @@ final class AppModel: ObservableObject {
         w.pausedAt = snap.pausedAtSec.map { Date(timeIntervalSince1970: TimeInterval($0)) }
         w.pausedDuration = TimeInterval(snap.pausedDurationSec ?? 0)
         activeWorkout = w
+        syncTargetZoneCoach()
 
         // Rebuild the transient GPS lifecycle flag as well as the durable workout value. Without this,
         // a distance workout restored after an OS kill resumes as a non-GPS workout: Resume never
@@ -952,6 +982,9 @@ final class AppModel: ObservableObject {
     func discardWorkout() {
         guard activeWorkout != nil else { return }
         activeWorkout = nil
+        syncTargetZoneCoach()
+        behavior.targetZone = 0
+        behavior.targetZoneIntervals = false
         if activeWorkoutIsGps { gpsRecorder.stop() }
         activeWorkoutIsGps = false
         ActiveWorkoutPersistence.clear()
@@ -976,6 +1009,9 @@ final class AppModel: ObservableObject {
     func endWorkout() {
         guard let w = activeWorkout else { return }
         activeWorkout = nil
+        syncTargetZoneCoach()
+        behavior.targetZone = 0
+        behavior.targetZoneIntervals = false
         let wasGps = activeWorkoutIsGps
         activeWorkoutIsGps = false
         // Drop the durable snapshot the instant the session ends , whether it saves below or is discarded
@@ -1891,8 +1927,34 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: - Target-zone coaching
+
+    /// Run the target-zone coach exactly while a workout is active and a zone is picked: start it, restart it
+    /// on a different zone, or stop it (clearing its last notification). `zone` overrides the stored setting
+    /// for the setting's own sink, which fires before the new value is stored.
+    private func syncTargetZoneCoach(zone: Int? = nil) {
+        let target = TargetZonePrefs.resolve(zone ?? behavior.targetZone)
+        guard activeWorkout != nil, target != 0 else {
+            if targetZoneCoach.isActive {
+                targetZoneCoach.stop()
+                TargetZoneNotifier.clear()
+            }
+            return
+        }
+        // A 4×4 runs only toward its own zone; picking another zone on the card ends the intervals.
+        let plan: IntervalPlan? = behavior.targetZoneIntervals && target == IntervalPlan.fourByFourZone
+            ? .fourByFour : nil
+        guard targetZoneCoach.zone != target || targetZoneCoach.plan != plan else { return }
+        targetZoneCoach.start(zone: target, zoneSet: profile.hrZoneSet, model: self, plan: plan)
+    }
+
     /// HR-zone haptic coaching: buzz when crossing into the top zone (ease off) or back to recovery.
+    ///
+    /// While target-zone coaching runs it owns the wrist, so this stays quiet rather than talking over it;
+    /// forgetting the last zone means it starts clean, with no buzz for a crossing it never watched, once
+    /// the target coach stops. Outside a target-zone workout nothing here changes.
     private func coachZone(_ hr: Int?) {
+        if targetZoneCoach.isActive { lastCoachZone = -1; return }
         guard behavior.zoneCoaching, live.bonded, live.worn, let hr, hr >= 30 else { return }
         guard profile.hrMax > 0 else { return }
         // #531: route the haptic coach through the profile's effective zone set (personalized when set,

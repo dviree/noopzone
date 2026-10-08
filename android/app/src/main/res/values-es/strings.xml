@@ -646,6 +646,7 @@
     <string name="l10n_sleep_screen_nap_window_durationtext_durmin_bbc35167">Nap %1$s, %2$s</string>
     <string name="l10n_sleep_screen_night_detail_8f271bcf">Detalle de la noche</string>
     <string name="l10n_sleep_screen_no_movement_detail_for_this_night_a6f9736a">No hay detalle de movimiento para esta noche.</string>
+    <string name="l10n_sleep_screen_move_relative_to_tonight_fd71d87b">Movimiento, en relación con esta noche</string>
     <string name="l10n_sleep_screen_no_nights_here_yet_607248f5">Aún no hay noches aquí.</string>
     <string name="l10n_sleep_screen_no_nights_with_sleep_data_yet_fa71b6b3">Aún no hay noches con datos de sueño. Tu registro se irá llenando a medida que duermas con la pulsera puesta.</string>
     <string name="l10n_sleep_screen_not_enough_history_in_this_range_7e2fd640">No hay suficiente historia en este rango. Prueba 3M, 6M o TODOS.</string>
@@ -2856,4 +2857,6 @@
     <string name="raw_diag_ecg_probe_start">Iniciar captura de ECG</string>
     <string name="raw_diag_ecg_probe_stop">Detener captura de ECG</string>
     <string name="raw_diag_ecg_probe_running">Puede que siga activa una captura en esta correa. El veredicto se registra en el strap log.</string>
+    <string name="today_customize_live_session_availability">Aparece hoy si Live Sessions está activado en Ajustes o hay una sesión activa.</string>
+    <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">Hoy a tu manera, frecuencia cardíaca para cualquier aplicación e italiano</string>
 </resources>

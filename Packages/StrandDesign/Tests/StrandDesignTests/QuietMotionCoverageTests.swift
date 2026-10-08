@@ -236,13 +236,13 @@ final class QuietMotionCoverageTests: XCTestCase {
     // MARK: - The gate itself
 
     /// Losing one signal is invisible in the app — the screen looks right in whichever mode still
-    /// works — so pin that all four are read, and that the OS flags stay live.
+    /// works — so pin that all five are read (the fifth, `idle`, is iPhone-only), and that the OS flags stay live.
     func testGateReadsAllFourSignalsAndStaysLive() throws {
         let root = try repoRoot()
         let src = try String(contentsOf: root.appendingPathComponent(
             "Packages/StrandDesign/Sources/StrandDesign/NoopMotion.swift"), encoding: .utf8)
-        XCTAssertTrue(src.contains("reduceMotion || isLowPower || quietMotion || windowObscured"),
-                      "poseStill must OR all four signals")
+        XCTAssertTrue(src.contains("reduceMotion || isLowPower || quietMotion || windowObscured || idle"),
+                      "poseStill must OR all five signals")
         // #2393: the window-visibility term is worthless if nothing ever sets it, and the three
         // notification families answer different questions — hide/unhide is the app, occlusion is the
         // window, miniaturise is the Dock. Which of them AppKit posts for any given user action is not

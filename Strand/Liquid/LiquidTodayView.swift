@@ -357,8 +357,8 @@ struct LiquidTodayView: View {
                     // #105: the live "workout in progress" card, dropped in the liquid Home rewrite. Restored
                     // here as the SAME leaf the classic TodayView renders (and Android's WorkoutInProgressCard),
                     // pinned above the reorderable block so an active manual workout is immediately visible
-                    // and taps straight through to Live. Renders nothing when no workout is active.
-                    ActiveWorkoutIndicatorSection()
+                    // and opens the existing workout flow. Today also offers Start when no workout is active.
+                    ActiveWorkoutIndicatorSection(showStart: selectedDayOffset == 0)
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
                     // and Start-session included — renders in the user's saved order. Reorder via the Arrange
                     // sheet (the header's up/down button; native drag rows); the order persists under the
@@ -527,7 +527,10 @@ struct LiquidTodayView: View {
     /// Arm the refresh once the pull passes the threshold; FIRE it when the finger releases (the pull
     /// springs back toward zero). Guarded so it can't double-fire or re-trigger mid-refresh.
     private func handlePull(_ y: CGFloat) {
-        pullY = max(0, y)
+        let nextPullY = max(0, y)
+        // Normal upward scrolling keeps reporting negative offsets. Avoid invalidating the whole
+        // dashboard for every such frame when the visible pull indicator is already at zero.
+        if nextPullY != pullY { pullY = nextPullY }
         guard !refreshing else { return }
         // #1748 twin: gate the ARM, not the release. `syncNow()`'s own gate checks connected + bonded, and
         // `bonded` is set by the live-HR path for a 5/MG that has never completed a handshake — so the pull
@@ -1652,8 +1655,8 @@ struct LiquidTodayView: View {
         // classic Today reads, so the two screens agree on when a wearer is genuinely mid-calibration
         // rather than simply lacking a scored night.
         let calNights = (selectedDayOffset == 0)
-            ? RecoveryScorer.calibrationNights(nightlyHrv: repo.days.map(\.avgHrv),
-                                               dayKeys: repo.days.map(\.day),
+            ? RecoveryScorer.calibrationNights(nightlyHrv: repo.chargeBaselines?.hrvHistory.values ?? [],
+                                               dayKeys: repo.chargeBaselines?.hrvHistory.dayKeys ?? [],
                                                hasRecovery: day?.recovery != nil)
             : nil
         let priorScored = TodayView.lastScoredRecoveryDay(
@@ -1701,8 +1704,14 @@ struct LiquidTodayView: View {
             // maximum is above it. See `ProfileStore.effortHRmax`.
             let maxHR = profile.effortHRmax
             let restHR = day?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-            liveStrainLocal = StrainScorer.strain(todayHr, maxHR: maxHR, restingHR: restHR,
-                                                  method: PuffinExperiment.effortMethod, sex: profile.sex)
+            let method = PuffinExperiment.effortMethod
+            let sex = profile.sex
+            // Fingerprinting and scoring a full day's HR samples is pure work. Keep it off the
+            // main actor so a Repository refresh cannot block an in-progress scroll.
+            liveStrainLocal = await Task.detached(priority: .utility) {
+                StrainScorer.strain(todayHr, maxHR: maxHR, restingHR: restHR,
+                                    method: method, sex: sex)
+            }.value
         } else {
             liveStrainLocal = nil
         }
@@ -2471,6 +2480,13 @@ private struct LiquidLiveHR: View {
     var animated: Bool
 
     @EnvironmentObject private var live: LiveState
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
+    /// Whether this card holds one of AppModel's realtime-HR arms (`startRealtimeHR`). A WHOOP 5.0/MG only
+    /// streams live heart rate while something asks for it, and Today never did, so the card showed the
+    /// 5-minute average instead of the live number. Held only while the card is on screen AND the app is in
+    /// the foreground, so a backgrounded Today does not keep the strap streaming; balanced exactly once.
+    @State private var holdsRealtime = false
     @State private var samples: [Double] = []
     @State private var beat = false
     @State private var scrubX: CGFloat?
@@ -2522,7 +2538,7 @@ private struct LiquidLiveHR: View {
                         .accessibilityHidden(true)
                 }
                 if let hr = bigBpm {
-                    (Text("\(hr)").font(StrandFont.rounded(22)).monospacedDigit()
+                    (Text("\(hr)").font(StrandFont.rounded(34, weight: .semibold)).monospacedDigit()
                         + Text(" bpm").font(StrandFont.caption))
                         .foregroundStyle(tint)
                         .contentTransition(.numericText())
@@ -2535,10 +2551,12 @@ private struct LiquidLiveHR: View {
             if series.count >= 2 {
                 ZStack {
                     LiquidHeartRateGrid()
+                    // Historical buckets cannot change between live ticks. Do not run the decorative
+                    // trace clock for this fallback; genuine live HR keeps its existing animation.
                     LiquidThread(bpm: series,
                                  segments: isLive ? nil : (fallbackSegments.count == series.count
                                                            ? fallbackSegments : nil),
-                                 tint: tint, height: 92, animated: animated)
+                                 tint: tint, height: 92, animated: animated && isLive)
                 }
                 .frame(height: 92)
                 .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.space2, style: .continuous))
@@ -2574,7 +2592,12 @@ private struct LiquidLiveHR: View {
                     .padding(.vertical, 24)
             }
         }
-        .onAppear { if samples.isEmpty, let hr = live.heartRate, hr > 0 { samples = [Double(hr)] } }
+        .onAppear {
+            if samples.isEmpty, let hr = live.heartRate, hr > 0 { samples = [Double(hr)] }
+            setRealtime(scenePhase == .active)
+        }
+        .onDisappear { setRealtime(false) }
+        .onChangeCompat(of: scenePhase) { phase in setRealtime(phase == .active) }
         .onChangeCompat(of: live.heartRate) { hr in
             // No live heart rate (the strap off the wrist, or gone): drop the trace, so the card stops calling an
             // old one "Live" and shows today's average under its own label.
@@ -2591,6 +2614,13 @@ private struct LiquidLiveHR: View {
             Text(v.map { String(Int($0.rounded())) } ?? "–")
                 .font(StrandFont.captionNumber).foregroundStyle(StrandPalette.textSecondary)
         }
+    }
+
+    /// Take or release this card's realtime-HR arm, only on a change, so starts and stops always balance.
+    private func setRealtime(_ on: Bool) {
+        guard on != holdsRealtime else { return }
+        holdsRealtime = on
+        if on { model.startRealtimeHR() } else { model.stopRealtimeHR() }
     }
 
     /// Uses the thread renderer's ten-point inset and equal-distance sample positions, so the

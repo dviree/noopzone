@@ -19,11 +19,17 @@ struct PowerSavingView: View {
     /// Stored INVERTED so the default (absent = false) reads as "HRV pause on". The toggle shows `!this`.
     @AppStorage(PuffinExperiment.pauseHrvDisabledKey) private var pauseHrvDisabled = false
     @AppStorage(PuffinExperiment.lowRefreshKey) private var lowRefreshEnabled = false
+    /// Sleep in the background unless a workout is running (iPhone, `DormancyPolicy`). Read on every move
+    /// to the background, so a change applies from the next one.
+    @AppStorage(DormancyPolicy.enabledKey) private var trainOnlyBackground = true
 
     var body: some View {
         ScreenScaffold(title: "Power saving",
                        subtitle: "Ease the load on your strap when its battery is running low.") {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                #if os(iOS)
+                backgroundCard
+                #endif
                 NoopCard {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Power saving").strandOverline()
@@ -102,6 +108,27 @@ struct PowerSavingView: View {
             }
         }
     }
+
+    #if os(iOS)
+    private var backgroundCard: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("In the background").strandOverline()
+                Toggle(isOn: $trainOnlyBackground) {
+                    Text("Only run during training")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("When NOOP is in the background with no workout running, it lets go of the strap and sleeps: no scanning, no background sync, no timers. The strap keeps recording and NOOP syncs everything when you open it. A workout keeps the strap connected with the phone locked, so zone training still coaches you. Battery and illness alerts then only update when you open NOOP.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+    #endif
 
     private var rowDivider: some View {
         Rectangle()

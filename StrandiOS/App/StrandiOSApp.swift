@@ -27,6 +27,8 @@ struct StrandiOSApp: App {
     /// NOOP's live heart rate banner. Built in `init` and fed from there (`LiveActivityController.follow`), not from
     /// a view: a process iOS starts in the background need not build one.
     @State private var liveActivity: LiveActivityController
+    /// Sleeps the app while it is in the background with no workout running (`BackgroundDormancy`).
+    @State private var dormancy: BackgroundDormancy
     /// The Lift Log session's own Live Activity. Separate from the live-HR one above: while a gym
     /// session is open this is the banner that matters (it carries the heart rate too), so the HR
     /// activity is suppressed rather than stacked beside it. Built in `init`, where the strap log it
@@ -118,6 +120,8 @@ struct StrandiOSApp: App {
         _liftActivity = State(initialValue: liftActivity)
         // The live heart rate banner makes room only for the Lift Log banner actually on screen, which carries the
         // heart rate itself — not for a sync (`LiveHRBannerLifecycle`).
+        // The live-HR banner is off by default now; switch it off once for installs that had it on.
+        UnitPrefs.turnLiveActivityOffOnce()
         let liveActivity = LiveActivityController()
         liveActivity.follow(model, standsAside: { [weak liftActivity] in liftActivity?.isShowing == true })
         _liveActivity = State(initialValue: liveActivity)
@@ -146,6 +150,8 @@ struct StrandiOSApp: App {
         // #2556: its own wake, because every existing one is conditional on something the missing strap
         // makes false. Registered unconditionally and re-armed from inside its own handler.
         StaleBatteryBackgroundScheduler.register(perform: { [weak model] in
+            // Asleep, the strap is released on purpose: its silence is not news.
+            guard model?.ble.dormant != true else { return }
             await model?.checkStrapNotSeen()
         })
         StaleBatteryBackgroundScheduler.schedule()
@@ -155,6 +161,13 @@ struct StrandiOSApp: App {
             noopDeviceId: model.deviceId
         )
         _health = StateObject(wrappedValue: bridge)
+        // Experimental self-hosted push: sends after each completed sync, only when the user turned it on.
+        SelfHostedPushClient.shared.attach(model: model)
+        // Strap and phone battery at the start and end of every workout (More › Logs › Battery).
+        WorkoutBatteryLog.shared.attach(model: model)
+        let dormancy = BackgroundDormancy()
+        dormancy.attach(model: model, health: bridge)
+        _dormancy = State(initialValue: dormancy)
         // Register a separate, always-on-while-authorized refresh task for Apple Health write-back.
         // The operation is write-only and bounded to the bridge's recent window; fresh BLE offloads still
         // use the immediate hook below. BGTaskScheduler chooses the actual wake time.
@@ -244,6 +257,8 @@ struct StrandiOSApp: App {
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                // Touches restart the idle clock that lets ProMotion drop its refresh rate (IdleTouchWatcher).
+                .background(IdleTouchWatcher())
                 // `hr` is the value being written: this runs in willSet, when `live.heartRate` still holds the old one.
                 .onReceive(model.live.$heartRate) { hr in
                     // The gym banner's own cheap path: no presentation is built here, and a heart rate moves
@@ -347,6 +362,12 @@ struct StrandiOSApp: App {
         // safe no-op until the user opts in.
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
+                // Wake the strap link first, so the foreground sync below has a strap to talk to.
+                dormancy.appBecameActive()
+                // Render the spoken zone cues once (a no-op once their sound files exist).
+                ZoneVoiceCues.prepare()
+                // Back in front: wake the decorative motion rather than open on a still screen.
+                NoopMotionState.shared.noteInteraction()
                 CoachBriefScheduler.activateIfEnabled { await model.coach.generateBrief() }
                 model.drainPendingIntents(router: router)
                 // iOS starts a Lift Log banner only for an app on screen, so a banner lost while NOOP was in
@@ -410,6 +431,9 @@ struct StrandiOSApp: App {
                 // into Apple Health. Gated inside writeIfEnabled on the opt-in default (OFF) — a
                 // no-op until the user turns on Shortcuts Export.
                 Task { await ShortcutHealthExport.writeIfEnabled(repo: model.repo) }
+                // Last: with no workout running this releases the strap and cancels the background
+                // requests submitted above, so nothing wakes the app until it is opened again.
+                dormancy.appEnteredBackground()
             }
         }
     }
@@ -459,6 +483,11 @@ private struct iOSRootView: View {
     /// Starts false so a cold-launch external action can't race this view's onAppear decision about the
     /// automatic What's New sheet. It becomes true only when no sheet is due or its dismissal completes.
     @State private var automaticLaunchSheetResolved = false
+    /// One-time "Import from Apple Health?" offer. Set the moment the prompt is shown, so it appears once per
+    /// install whichever button is pressed (or if the app is closed with it up).
+    @AppStorage("noop.appleHealthImportPromptSeen") private var appleHealthPromptSeen = false
+    @State private var showAppleHealthPrompt = false
+    @EnvironmentObject private var router: NavRouter
 
     var body: some View {
         #if DEBUG
@@ -521,6 +550,7 @@ private struct iOSRootView: View {
         // accepted (onAppear already fired before acceptance), so What's New shows right after.
         .onAppear {
             showWhatsNewIfDue()
+            offerAppleHealthImportIfDue()
             // Seed the current What's New into the Updates inbox (idempotent per version) so the bell
             // collects it even if the user dismisses the auto sheet.
             UpdateStore.shared.seedWhatsNewIfNeeded()
@@ -536,6 +566,33 @@ private struct iOSRootView: View {
             }
         }
         .onChange(of: acceptedTerms) { _, _ in showWhatsNewIfDue() }
+        // First-launch Apple Health offer: only once every gate above has cleared (Terms, onboarding, any
+        // What's New sheet), so it never stacks on top of them.
+        .onChange(of: automaticLaunchSheetResolved) { _, _ in offerAppleHealthImportIfDue() }
+        .onChange(of: onboarded) { _, _ in offerAppleHealthImportIfDue() }
+        .alert("Import from Apple Health?", isPresented: $showAppleHealthPrompt) {
+            Button("Import") { router.openAppleHealth() }
+            Button("Not now", role: .cancel) { }
+        } message: {
+            Text("Bring in your history from Apple Health (sleep, heart rate, HRV, workouts and more) so NOOP has data from day one. You can also do it later under More › Apple Health.")
+        }
+    }
+
+    /// Show the one-time Apple Health import offer when it is due: never seen, and nothing else is in front
+    /// of the shell. A short delay lets the onboarding / Terms overlay finish fading first; the gates are
+    /// re-checked after it, since any of them can change in between.
+    private func offerAppleHealthImportIfDue() {
+        guard !demoBypass, !appleHealthPromptSeen else { return }
+        let due = {
+            !appleHealthPromptSeen && onboarded && acceptedTerms == Terms.currentVersion
+                && automaticLaunchSheetResolved && !showWhatsNew
+        }
+        guard due() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            guard due() else { return }
+            appleHealthPromptSeen = true
+            showAppleHealthPrompt = true
+        }
     }
 
     /// DEBUG: launched with --demo-seed, skip the first-run gates (onboarding / terms / What's New) so the

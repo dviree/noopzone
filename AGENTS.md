@@ -133,12 +133,12 @@ xcodegen generate && xcodebuild -project Strand.xcodeproj -scheme Strand \
 | `prune-stale-branches.yml` | Deletes branches whose PR merged or closed unmerged | ubuntu | **active**, weekly + dispatch |
 | `fork-testing-build.yml` / `fork-release.yml` | Staging / release builds (apk + mac + ios) | — | on dispatch |
 
-**The trap:** `swift-packages` does **NOT** compile the app targets. So if you touch **app-target
-Swift** — anything under `Strand/`, `StrandiOS/`, `StrandiOSShared/`, `StrandiOSWidgets/` (Views,
-`AppModel`, `BLEManager`, `Repository`, `RootTabView`, widget publish, …) — **no default CI validates
-it**, because `app-build.yml` is disabled. A compile error there (e.g. `'self' used before all stored
-properties are initialized`) will pass every green check and still be broken. If you change app-target
-Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `app-build.yml` on demand.
+**The trap:** `swift-packages` does **NOT** compile the app targets. App-target Swift under
+`Strand/`, `StrandiOS/`, `StrandiOSShared/`, `StrandiOSWidgets/` and the watch targets is validated by
+**`app-build.yml`**, which runs automatically on relevant PRs and runs `StrandTests` on its macOS leg.
+When changing app-target Swift, build locally with `xcodebuild … build` or verify that both Apple
+build checks passed on the current PR head. A green package suite alone is not app-build evidence.
+The workflow has no push trigger; a direct non-release commit to `main` needs an on-demand dispatch.
 
 ### Local walls (things that will *not* build where you expect)
 - **On Linux:** `WhoopProtocol` / `OuraProtocol` (pure) build & test with a bare toolchain. The
@@ -150,8 +150,8 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
   and a change can break it silently.
 - **App targets** (`Strand`, `NOOPiOS`) need **Xcode on macOS**; `StrandTests` runs only under
   `xcodebuild … test` on macOS — locally, or via `app-build.yml`, which does run it on the `Strand` leg.
-  Since that workflow is **disabled by default**, app-target tests are only as validated as your last
-  on-demand dispatch: writing them is not the same as having run them.
+  The workflow runs automatically on relevant PRs; verify its macOS test step passed on the current
+  head. Writing app-target tests is not the same as having run them.
 - **BLE behavior cannot be CI- or Linux-tested.** Anything on the CoreBluetooth / offload / live-HR
   path (`Strand/BLE`, `Strand/Collect`, Android `com.noop.ble`) must be **validated on a real strap**;
   compile-success proves nothing about connection behavior. Say what you tested on hardware.

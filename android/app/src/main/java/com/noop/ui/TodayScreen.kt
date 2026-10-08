@@ -156,6 +156,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.noop.R
 import com.noop.ai.AiKeyStore
 import com.noop.analytics.Baselines
+import com.noop.analytics.ChargeBaselines
 import com.noop.analytics.BatteryEstimator
 import com.noop.analytics.ChargeDriver
 import com.noop.analytics.ChargeDriverLabel
@@ -332,6 +333,9 @@ fun TodayScreen(
     val today by viewModel.today.collectAsStateWithLifecycle()
     val alert by viewModel.healthAlert.collectAsStateWithLifecycle()
     val days by viewModel.recentDays.collectAsStateWithLifecycle()
+    // #2525: the Charge baselines the engine's rule resolves, the one source for every Charge readout below
+    // the headline (calibration count, "What shaped it", confidence tier).
+    val chargeBaselines by viewModel.chargeBaselines.collectAsStateWithLifecycle()
     val activeDayCycle by viewModel.activeDayCycle.collectAsStateWithLifecycle()
     val spo2CandidateByDay by viewModel.spo2CandidateByDay.collectAsStateWithLifecycle()
     // #2208: `connected` alone never said WHOSE charge liveSnap.batteryPct is. It goes true the moment any
@@ -1065,7 +1069,10 @@ fun TodayScreen(
         // epoch-aware history the recovery engine folds — otherwise a post-recalibration user's pre-epoch
         // nights inflate the count past the seed gate and the score side wrongly reads NeedsStrap (Bug B).
         val hrvEpoch = NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble()
-        recoveryCalibrationNights(days, displayMetric?.recovery != null, hrvEpoch)
+        recoveryCalibrationNights(
+            chargeBaselines?.hrvHistory?.values.orEmpty(), chargeBaselines?.hrvHistory?.dayKeys.orEmpty(),
+            displayMetric?.recovery != null, hrvEpoch,
+        )
     } else {
         null
     }
@@ -1494,13 +1501,17 @@ fun TodayScreen(
         }
         }
 
-        // A "workout in progress" indicator whenever a manual workout is active (iOS parity: the Today
-        // ActiveWorkoutIndicator). A tap routes to Live and re-opens the in-exercise overlay. Gated purely on
-        // `activeWorkout`, so it auto-appears/clears with no extra lifecycle wiring. Its per-second clock
-        // ticks inside the card's own LaunchedEffect, never recomposing the Today body.
-        activeWorkout?.let { w ->
-            item {
-                WorkoutInProgressCard(workout = w, onReturn = onOpenActiveWorkout)
+        // Today's shared workout host offers Start when idle and the recording controls when active.
+        // Past days retain the active-workout shortcut. Per-second clocks remain inside their leaves.
+        if (selectedDayOffset == 0) {
+            // Keep the existing picker/live-view host mounted across idle → recording transitions.
+            // Manual entry stays on Workouts; Today offers the same live recording controls.
+            item { WorkoutStartSection(viewModel) }
+        } else {
+            activeWorkout?.let { w ->
+                item {
+                    WorkoutInProgressCard(workout = w, onReturn = onOpenActiveWorkout)
+                }
             }
         }
 
@@ -2002,6 +2013,7 @@ fun TodayScreen(
         ) {
             ChargeBreakdownSheet(
                 days = days,
+                chargeBaselines = chargeBaselines,
                 displayDay = displayMetric,
                 carriedDay = lastScoredRecoveryDay,
                 showReadiness = selectedDayOffset == 0,
@@ -4742,6 +4754,16 @@ private fun intStringGrouped(v: Double): String {
 
 // MARK: - Shared Shown / Hidden editor rows
 
+@Composable
+private fun VisibilityItemLabel(title: String, subtitle: String?, color: Color, modifier: Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Metrics.space2)) {
+        Text(title, style = NoopType.body, color = color)
+        if (subtitle != null) {
+            Text(subtitle, style = NoopType.caption, color = Palette.textSecondary)
+        }
+    }
+}
+
 /**
  * The common editor body used by Today sections, Key Metrics and Your Cards. Items are never deleted:
  * remove moves one from Shown to Hidden, add restores it at the end of Shown, and the arrow controls use
@@ -4762,6 +4784,7 @@ internal fun <T> EditableVisibilityRows(
     // a user browses by origin. null (Today sections, Key Metrics, Your Cards) keeps the flat list. The
     // Shown list stays flat — it is the user's own cross-origin order. Twin of the Swift EditableLayoutList.
     hiddenGroup: ((T) -> String)? = null,
+    itemSubtitle: @Composable (T) -> String? = { null },
 ) {
     val minShown = if (allowEmpty) 0 else 1
     Column(
@@ -4776,7 +4799,7 @@ internal fun <T> EditableVisibilityRows(
                 modifier = Modifier.fillMaxWidth().padding(vertical = Metrics.space6),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(title, style = NoopType.body, color = Palette.textPrimary, modifier = Modifier.weight(1f))
+                VisibilityItemLabel(title, itemSubtitle(item), Palette.textPrimary, Modifier.weight(1f))
                 IconButton(
                     onClick = {
                         if (index > 0) shown.add(index - 1, shown.removeAt(index))
@@ -4853,7 +4876,7 @@ internal fun <T> EditableVisibilityRows(
                         modifier = Modifier.fillMaxWidth().padding(vertical = Metrics.space6),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(title, style = NoopType.body, color = Palette.textTertiary, modifier = Modifier.weight(1f))
+                        VisibilityItemLabel(title, itemSubtitle(item), Palette.textTertiary, Modifier.weight(1f))
                         IconButton(
                             onClick = { hidden.remove(item); shown.add(item) },
                             modifier = Modifier.size(Metrics.iconButton),
@@ -4878,7 +4901,7 @@ internal fun <T> EditableVisibilityRows(
                     modifier = Modifier.fillMaxWidth().padding(vertical = Metrics.space6),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(title, style = NoopType.body, color = Palette.textTertiary, modifier = Modifier.weight(1f))
+                    VisibilityItemLabel(title, itemSubtitle(item), Palette.textTertiary, Modifier.weight(1f))
                     IconButton(
                         onClick = { shown.add(hidden.removeAt(index)) },
                         modifier = Modifier.size(Metrics.iconButton),
@@ -5260,6 +5283,11 @@ private fun TodayLayoutEditorDialog(
                     shown = shown,
                     hidden = hidden,
                     itemTitle = { uiString(it.titleRes) },
+                    itemSubtitle = {
+                        if (it == TodaySection.LIVE_SESSION) {
+                            stringResource(R.string.today_customize_live_session_availability)
+                        } else null
+                    },
                 )
 
                 // #today-hosted-cards: hand-off to the editor that chooses WHICH Trends/Sleep cards the
@@ -5309,6 +5337,7 @@ private fun TodayLayoutEditorDialog(
 @Composable
 internal fun ChargeBreakdownSheet(
     days: List<DailyMetric>,
+    chargeBaselines: ChargeBaselines.Resolved?,
     displayDay: DailyMetric?,
     carriedDay: DailyMetric?,
     showReadiness: Boolean,
@@ -5352,7 +5381,7 @@ internal fun ChargeBreakdownSheet(
             ) {
                 // The breakdown self-gates: a calibrating night (empty drivers) renders nothing here, the
                 // Contributors + Readiness below still give an honest read, never a blank sheet.
-                RecoveryDriversSection(days = days, displayDay = displayDay, carriedDay = carriedDay)
+                RecoveryDriversSection(chargeBaselines = chargeBaselines, displayDay = displayDay, carriedDay = carriedDay)
                 RecoveryContributorsSection(day = displayDay, carriedDay = carriedDay)
                 // S4: the SEPARATE Readiness block now lives here behind the Charge-ring tap (today-only,
                 // matching the old inline gate). A one-word read (Push / Maintain / Rest) stays on the hero.
@@ -5465,21 +5494,18 @@ internal fun ChargeBreakdownSheet(
 
 @Composable
 private fun RecoveryDriversSection(
-    days: List<DailyMetric>,
+    chargeBaselines: ChargeBaselines.Resolved?,
     displayDay: DailyMetric?,
     carriedDay: DailyMetric? = null,
 ) {
-    // #2315: the same recalibration epoch the engine folds with. Read here rather than threaded from the
-    // caller because this section is the only consumer, and the pref read is one getLong behind remember.
-    val context = LocalContext.current
-    val hrvEpoch = remember { NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble() }
     // Read the row the Charge ring itself reads: today's own when scored, else the carried last-scored
-    // day (#543) so the breakdown matches the carried ring instead of vanishing at the rollover.
+    // day (#543) so the breakdown matches the carried ring instead of vanishing at the rollover. The
+    // baselines already carry both recalibration epochs (#2315), applied where they were resolved (#2525).
     val readDay = carriedDay ?: displayDay
-    val drivers = remember(days, readDay, hrvEpoch) { recoveryChargeDrivers(days, readDay, hrvEpoch) }
+    val drivers = remember(chargeBaselines, readDay) { recoveryChargeDrivers(chargeBaselines, readDay) }
     if (drivers.isEmpty()) return
 
-    val tier = remember(days, readDay, hrvEpoch) { chargeConfidenceTier(days, readDay, hrvEpoch) }
+    val tier = remember(chargeBaselines, readDay) { chargeConfidenceTier(chargeBaselines, readDay) }
     val overline = carriedDay?.let { uiString(R.string.today_charge_carried, carriedCaption(it.day).localized()) }
         ?: uiString(R.string.trends_charge)
 

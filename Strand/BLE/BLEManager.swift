@@ -1317,6 +1317,21 @@ public final class BLEManager: NSObject, ObservableObject {
     /// rather than on every tick of the family-rotation timer.
     private var lastBlockedConnectReason: String?
 
+    /// Asleep: the iPhone app is in the background with no workout running and the user has asked NOOP
+    /// not to run there (`BackgroundDormancy`). The strap is released and every automatic scan/connect
+    /// path is refused until the app is opened again. The strap keeps recording on its own; its history
+    /// is offloaded on the next open.
+    ///
+    /// Persisted, so a process relaunched in the background (state restoration, a Bluetooth toggle)
+    /// stays asleep instead of reconnecting before anything has decided it should. The app clears it the
+    /// moment it becomes active. Never set on macOS, where nothing calls `setDormant`.
+    public private(set) var dormant = UserDefaults.standard.bool(forKey: BLEManager.dormantKey)
+    static let dormantKey = "noop.ble.dormant"
+
+    /// Whether waking from `dormant` reconnects: false when the user had disconnected the strap before
+    /// NOOP slept. In memory only, like `intentionalDisconnect`, which a relaunch also clears.
+    private var reconnectOnWake = true
+
     /// #1635: one `ScanAdvertisementSummary` line per SCAN, not per process — the question it answers
     /// is only visible by comparing a scan before the strap was put in pairing mode against one after,
     /// so `startScan` reopens it.
@@ -1641,6 +1656,8 @@ public final class BLEManager: NSObject, ObservableObject {
     }
 
     private func connectCore(model: WhoopModel) {
+        // Asleep: nothing connects until the app wakes the link (`setDormant(false)`).
+        guard !dormant else { return }
         intentionalDisconnect = false
         // Connection test mode: stamp when this connect attempt began so didConnect can report the connect
         // latency. A plain Date() assignment, no behaviour change; only read behind the .connection gate.
@@ -2061,6 +2078,39 @@ public final class BLEManager: NSObject, ObservableObject {
         router.deviceId = id
     }
 
+    /// Put the strap link to sleep or wake it (see `dormant`).
+    ///
+    /// Asleep releases ONLY the link: it cancels a live or pending (standing) connect and any scan, and
+    /// marks the drop intentional so the disconnect path schedules no reconnect. Unlike `disconnect()`
+    /// it leaves the bond give-up, marginal-radio and re-pair state alone, so a sleep/wake cycle is not
+    /// mistaken for the user pressing Connect. Waking goes through `connectFromSystem`, the same
+    /// one-attempt system path a Bluetooth toggle takes.
+    public func setDormant(_ on: Bool) {
+        guard dormant != on else { return }
+        dormant = on
+        UserDefaults.standard.set(on, forKey: Self.dormantKey)
+        lastBlockedConnectReason = nil
+        if on {
+            log("Asleep: NOOP is in the background with no workout running — releasing the strap; "
+                + "no scanning or reconnecting until NOOP is opened")
+            // A strap the user had disconnected stays disconnected on wake; sleeping must not undo that.
+            reconnectOnWake = !intentionalDisconnect
+            intentionalDisconnect = true
+            cancelScanFallback()
+            standingConnectAt = nil
+            if let p = peripheral {
+                central.cancelPeripheralConnection(p)   // a live OR a pending (standing) connect
+            }
+            central.stopScan()
+        } else if reconnectOnWake {
+            // The connect gate logs on its own if it then declines (e.g. another device is active).
+            log("Awake: NOOP is open again — asking to reconnect the strap")
+            connectFromSystem()
+        } else {
+            log("Awake: NOOP is open again — the strap stays disconnected, as it was before NOOP slept")
+        }
+    }
+
     /// Record whether a WHOOP is the active device (#1881). Called from the SAME two closures the
     /// `SourceCoordinator` already uses to stop and start the WHOOP, so it inherits their semantics
     /// exactly — including the deliberate Apple Watch exception, which calls neither.
@@ -2087,6 +2137,13 @@ public final class BLEManager: NSObject, ObservableObject {
     /// says which path tried. Logged only on the transition into blocking, so a rotation timer cannot
     /// flood the log.
     private func whoopConnectAllowed(_ reason: String) -> Bool {
+        if dormant {
+            if lastBlockedConnectReason != reason {
+                lastBlockedConnectReason = reason
+                log("Not connecting the WHOOP (\(reason)): asleep until NOOP is opened")
+            }
+            return false
+        }
         if whoopIsActiveDevice { return true }
         // The flag is a CACHE of a registry fact, and the registry is the authority. Re-validate before
         // refusing, so the gate can never latch: it is set from the coordinator's stop/start closures and
@@ -5028,6 +5085,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// from the already-gated `connectFromSystem` — and this method's own family-rotation timer, which
     /// cannot start a scan that one of those did not. Gating here as well would block the user's Connect.
     private func startScan(for model: WhoopModel, allowFallback: Bool) {
+        guard !dormant else { return }
         advertisementLogged = false
         cancelScanFallback()
         selectedModel = model
@@ -5795,6 +5853,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
                                didDiscover peripheral: CBPeripheral,
                                advertisementData: [String: Any],
                                rssi RSSI: NSNumber) {
+        // Asleep: a scan result that raced the stop must not connect.
+        if dormant { central.stopScan(); return }
         let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name ?? "unknown"
         // The raw name goes to the DEVICE LIST (the user's own screen, where they need to recognise
         // their strap); only the log gets the model-only form. See LiveState.logSafeDeviceName.
@@ -6434,6 +6494,17 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         router.family = selectedModel.deviceFamily
         router.deviceId = deviceId   // #1706: attribute this connection's alarm readback
         configureCollectorFamily()
+        if dormant {
+            // Relaunched in the background while asleep: let the inherited link go rather than resume it.
+            // Before the bond flags below are seeded: cancelling a pending (unconnected) restored connect
+            // fires no didDisconnect to clear them, so seeding first would leave a released strap "bonded".
+            state.connected = false
+            intentionalDisconnect = true
+            log("Restored peripheral \(p.identifier) while asleep — releasing it until NOOP is opened")
+            central.cancelPeripheralConnection(p)
+            Task { @MainActor in await bootstrapStore() }
+            return
+        }
         // Collection only runs post-bond, so a restored link was already bonded;
         // seed those flags now. `didWriteValueFor` won't re-fire on its own.
         state.bonded = true

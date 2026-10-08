@@ -35,6 +35,9 @@ final class NavRouter: ObservableObject {
         /// Also the K5 scheduled morning-brief notification's tap-through target.
         case coach
         case alarms
+        /// The Apple Health import screen, opened from the one-time "Import from Apple Health?" prompt
+        /// shown at first launch.
+        case appleHealth
 
         var id: String { rawValue }
 
@@ -68,6 +71,9 @@ final class NavRouter: ObservableObject {
     func openDevices() { requestedDestination = .devices }
     /// #1862: open Coach, optionally with a question the launcher already collected.
     func openCoach() { requestedDestination = .coach }
+    /// Open the Apple Health import screen (HealthKit when the build is entitled, file / Shortcuts import
+    /// otherwise — the screen itself decides).
+    func openAppleHealth() { requestedDestination = .appleHealth }
     /// Open the existing wake-alarm and wind-down settings from Sleep.
     func openAlarms() { requestedDestination = .alarms }
     /// Open the v5 Insights hub (the n-of-1 "what moves your Charge" surface).

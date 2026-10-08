@@ -18,9 +18,8 @@ import AppKit
 //   • `.staggeredAppear(index:)` — list/grid items fade + rise in, once, in sequence
 //   • `.softCardTransition()` — card insert/remove (opacity + a hair of scale)
 //
-// Every helper is PUBLIC, GPU-cheap (opacity / offset / scale only), and honours
-// `@Environment(\.accessibilityReduceMotion)` — under Reduce Motion animations collapse
-// to their final frame instantly, with no offset, scale or counting.
+// Count-up values and staggered entrances use the shared quiet-motion gate so
+// Low Power Mode and the in-app preference also suppress their one-shot work.
 //
 // This complements `StrandMotion` (the physiological breathe/pulse set) rather than
 // replacing it: where StrandMotion leans organic, NoopMotion leans crisp and mechanical,
@@ -131,6 +130,24 @@ public final class NoopMotionState: ObservableObject {
     /// non-SwiftUI reader (the motion sensor) and the `@AppStorage` toggle never disagree.
     @Published public private(set) var quietMotion: Bool
 
+    /// iPhone only: nobody has touched the screen for `idleAfter` seconds.
+    ///
+    /// A per-frame loop keeps a ProMotion panel at its loop's rate for as long as it runs, so a Today
+    /// screen left open on a table never let the display drop to its low idle rate, and the CPU kept
+    /// drawing frames that differed only in decoration. Posing still while idle hands the refresh rate
+    /// back to the system: it falls as soon as nothing moves and rises again with the first touch,
+    /// which is the adaptive behaviour ProMotion is built around. Values still update when data
+    /// arrives; only the decorative motion waits.
+    ///
+    /// Off until the app calls `enableIdleTracking(after:)`, so macOS and the tests never see it.
+    @Published public private(set) var idle: Bool = false
+
+    /// Posted on every `idle` flip with `["idle": Bool]`, for the non-View reader (the tilt sensor).
+    nonisolated public static let idleDidChange = Notification.Name("NoopMotionState.idleDidChange")
+
+    private var idleAfter: TimeInterval?
+    private var idleWork: DispatchWorkItem?
+
     private init() {
         isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
         quietMotion = UserDefaults.standard.bool(forKey: QuietMotionPrefs.enabledKey)
@@ -231,6 +248,40 @@ public final class NoopMotionState: ObservableObject {
         !windows.isEmpty && !windows.contains { $0.onScreen }
     }
 
+    /// Start the idle clock. Called once by the iPhone app, which then reports touches through
+    /// `noteInteraction()`.
+    public func enableIdleTracking(after seconds: TimeInterval) {
+        idleAfter = seconds
+        noteInteraction()
+    }
+
+    /// Stop the idle clock and let the motion run again.
+    public func disableIdleTracking() {
+        idleAfter = nil
+        idleWork?.cancel()
+        idleWork = nil
+        setIdle(false)
+    }
+
+    /// A touch, or the app returning to the foreground: wake the motion now and restart the idle clock.
+    /// Cheap enough to call on every touch (one cancelled and one scheduled work item).
+    public func noteInteraction() {
+        guard let after = idleAfter else { return }
+        idleWork?.cancel()
+        setIdle(false)
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.setIdle(true) }
+        }
+        idleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + after, execute: work)
+    }
+
+    private func setIdle(_ now: Bool) {
+        guard idle != now else { return }
+        idle = now
+        NotificationCenter.default.post(name: Self.idleDidChange, object: self, userInfo: ["idle": now])
+    }
+
     /// The gate. `reduceMotion` comes from `@Environment(\.accessibilityReduceMotion)` at the call
     /// site — the environment is the only place SwiftUI publishes it, and reading it imperatively
     /// would not invalidate the view when the user changes the setting.
@@ -242,13 +293,13 @@ public final class NoopMotionState: ObservableObject {
     /// ```
     @inline(__always)
     public func poseStill(_ reduceMotion: Bool) -> Bool {
-        reduceMotion || isLowPower || quietMotion || windowObscured
+        reduceMotion || isLowPower || quietMotion || windowObscured || idle
     }
 
     /// The non-environment signals on their own, for an imperative (non-View) reader that supplies its
     /// own Reduce Motion read — e.g. the decorative motion sensor deciding whether to start at all.
     /// Views must use `poseStill(_:)` instead so they invalidate correctly.
-    public var poseStillIgnoringReduceMotion: Bool { isLowPower || quietMotion || windowObscured }
+    public var poseStillIgnoringReduceMotion: Bool { isLowPower || quietMotion || windowObscured || idle }
 }
 
 // MARK: - CountUpText
@@ -258,7 +309,7 @@ public final class NoopMotionState: ObservableObject {
 // so it works on the iOS 16 / macOS 13 floor (no TimelineView spring / PhaseAnimator needed)
 // and rides whatever animation the environment supplies — by default `NoopMotion.value`.
 //
-// Reduce Motion → the final value is shown instantly, with no tick.
+// Quiet motion → the final value is shown instantly, with no tick.
 
 /// A text view whose number animates from its previous value to the new one.
 /// Use for the big scores / hero metric read-outs.
@@ -283,6 +334,10 @@ public struct CountUpText: View {
     @State private var hasAppeared = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // The system flag alone misses NOOP's own preference and Low Power Mode. Use the same
+    // live gate as the decorative loops so a refresh cannot restart suppressed count-up work.
+    @ObservedObject private var motion = NoopMotionState.shared
+    private var poseStill: Bool { motion.poseStill(reduceMotion) }
 
     /// - Parameters:
     ///   - value: the number to display / animate to.
@@ -309,7 +364,7 @@ public struct CountUpText: View {
             .onAppear {
                 guard !hasAppeared else { return }
                 hasAppeared = true
-                if reduceMotion {
+                if poseStill {
                     target = value                      // snap, no tick
                 } else {
                     target = 0
@@ -317,7 +372,7 @@ public struct CountUpText: View {
                 }
             }
             .onChangeCompat(of: value) { newValue in
-                if reduceMotion {
+                if poseStill {
                     var tx = Transaction(); tx.disablesAnimations = true
                     withTransaction(tx) { target = newValue }
                 } else {
@@ -359,7 +414,7 @@ private struct _AnimatableNumber: View, Animatable {
 // MARK: - Staggered appear
 //
 // Fade-in + 8pt rise, sequenced by `index`. Runs ONCE per element (guarded by `hasAppeared`),
-// so re-renders / scroll recycling don't re-trigger it. Reduce Motion → visible instantly,
+// so re-renders / scroll recycling don't re-trigger it. Quiet motion → visible instantly,
 // no offset.
 
 private struct StaggeredAppear: ViewModifier {
@@ -368,17 +423,20 @@ private struct StaggeredAppear: ViewModifier {
 
     @State private var hasAppeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Lazy sections enter repeatedly while scrolling. Quiet motion must expose their final pose
+    // immediately rather than scheduling another delayed entrance when they become visible.
+    @ObservedObject private var motion = NoopMotionState.shared
+    private var poseStill: Bool { motion.poseStill(reduceMotion) }
 
     func body(content: Content) -> some View {
-        // `shown` is true once we've appeared (or immediately under Reduce Motion / when the
-        // element is asked to appear without animation).
-        let shown = hasAppeared || reduceMotion
+        // Show immediately when the shared quiet-motion gate is closed.
+        let shown = hasAppeared || poseStill
         content
             .opacity(isVisible ? (shown ? 1 : 0) : 1)
             .offset(y: (isVisible && !shown) ? NoopMotion.riseOffset : 0)
             .onAppear {
                 guard isVisible, !hasAppeared else { return }
-                if reduceMotion {
+                if poseStill {
                     hasAppeared = true                  // no animation, no delay
                 } else {
                     let delay = Double(max(0, index)) * NoopMotion.stagger
@@ -387,13 +445,13 @@ private struct StaggeredAppear: ViewModifier {
                     }
                 }
             }
+            .onChangeCompat(of: poseStill) { if $0 { hasAppeared = true } }
     }
 }
 
 public extension View {
     /// Fade-in + 8pt rise on first appearance, delayed by `index * 0.04s` for a sequenced
-    /// list/grid reveal. Runs ONCE per element. Honours Reduce Motion (appears instantly,
-    /// no offset).
+    /// list/grid reveal. Runs ONCE per element. The quiet-motion gate shows it instantly.
     ///
     /// - Parameters:
     ///   - index: position in the sequence (0 = first / no delay).

@@ -15,21 +15,31 @@ import StrandDesign
 /// re-renders only this small leaf. Owns its own sheet-presentation state so nothing about it needs to
 /// live on the parent either.
 struct WorkoutStartControl: View {
+    var showsActiveIndicator = false
     @EnvironmentObject var model: AppModel
     @State private var showLiveWorkout = false
     @State private var showStartSport = false
 
     var body: some View {
-        NoopButton(model.activeWorkout == nil ? "Start workout" : "View active workout",
-                   systemImage: model.activeWorkout == nil ? "figure.run" : "timer",
-                   kind: .primary,
-                   fullWidth: true) {
-            // No active session → pick a named sport first (#519), then the sheet's onStart begins it
-            // and opens the in-exercise view. Already active → jump straight back into the live view.
-            if model.activeWorkout == nil { showStartSport = true }
-            else { showLiveWorkout = true }
+        Group {
+            if showsActiveIndicator, let active = ActiveWorkoutIndicatorModel.make(from: model.activeWorkout) {
+                ActiveWorkoutIndicatorCard(model: active) {
+                    StrandHaptic.selection.play()
+                    showLiveWorkout = true
+                }
+            } else {
+                NoopButton(model.activeWorkout == nil ? "Start workout" : "View active workout",
+                           systemImage: model.activeWorkout == nil ? "figure.run" : "timer",
+                           kind: .primary,
+                           fullWidth: true) {
+                    // No active session → pick a named sport first (#519), then the sheet's onStart begins it
+                    // and opens the in-exercise view. Already active → jump straight back into the live view.
+                    if model.activeWorkout == nil { showStartSport = true }
+                    else { showLiveWorkout = true }
+                }
+                .accessibilityLabel(model.activeWorkout == nil ? "Start a workout" : "View the active workout")
+            }
         }
-        .accessibilityLabel(model.activeWorkout == nil ? "Start a workout" : "View the active workout")
         // #459: the in-exercise view, presented when Start Workout is tapped here (same screen LiveView
         // shows). activeWorkout is global on AppModel, so ending it from either surface stays in sync.
         .sheet(isPresented: $showLiveWorkout) {
@@ -45,6 +55,42 @@ struct WorkoutStartControl: View {
                 model.startWorkout(sport: name)
                 showLiveWorkout = true
             }
+        }
+    }
+}
+
+/// Zone training: a workout that coaches toward one heart-rate zone. Tap it, pick the zone (2, 3 or 4,
+/// shown with the user's own bpm interval, or a 4×4 interval session in Zone 4) and the session starts at once with the target-zone coach on:
+/// the strap taps twice below the zone, three times above it and once back in, mirrored as notifications.
+/// No activity step — the session is recorded under the catalogue default sport.
+///
+/// The live view is presented from the zone sheet's `onDismiss`, once that sheet has fully gone, so the
+/// two presentations never overlap. The control stays in the hierarchy (disabled) while a workout is
+/// active so its live-workout sheet keeps its host.
+struct ZoneTrainingStartControl: View {
+    @EnvironmentObject var model: AppModel
+    @State private var showZonePicker = false
+    @State private var startedZone: Int?
+    @State private var showLiveWorkout = false
+
+    var body: some View {
+        NoopButton("Zone training", systemImage: "heart.circle", kind: .secondary, fullWidth: true) {
+            startedZone = nil
+            showZonePicker = true
+        }
+        .disabled(model.activeWorkout != nil)
+        .accessibilityLabel(Text("Start a zone training workout"))
+        .sheet(isPresented: $showZonePicker, onDismiss: {
+            if startedZone != nil, model.activeWorkout != nil { showLiveWorkout = true }
+        }) {
+            ZoneTrainingSheet(zoneSet: model.profile.hrZoneSet) { zone, intervals in
+                model.startWorkout(targetZone: zone, intervals: intervals)
+                startedZone = zone
+            }
+        }
+        .sheet(isPresented: $showLiveWorkout) {
+            LiveWorkoutView(onClose: { showLiveWorkout = false })
+                .environmentObject(model.live)
         }
     }
 }

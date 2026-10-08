@@ -106,6 +106,22 @@ private struct WorkoutTimeAxisModifier: ViewModifier {
     }
 }
 
+/// Find a reading in the date-sorted, full-resolution series retained by both chart initializers.
+/// Binary search avoids scanning every reading on each drag or hover event. Drawing may omit points,
+/// but selection must still return the original reading; an equal-distance tie chooses the earlier one.
+func nearestTrendPoint(to date: Date, in points: [TrendPoint]) -> TrendPoint? {
+    guard !points.isEmpty else { return nil }
+    var lower = 0, upper = points.count
+    while lower < upper {
+        let middle = (lower + upper) / 2
+        if points[middle].date < date { lower = middle + 1 } else { upper = middle }
+    }
+    if lower == 0 { return points[0] }
+    if lower == points.count { return points[lower - 1] }
+    let before = points[lower - 1], after = points[lower]
+    return date.timeIntervalSince(before.date) <= after.date.timeIntervalSince(date) ? before : after
+}
+
 public struct TrendChart: View {
 
     public var points: [TrendPoint]
@@ -251,10 +267,7 @@ public struct TrendChart: View {
         // Map the cursor x (relative to the plot area) back to a Date.
         let relX = x - plot.minX
         guard let date: Date = proxy.value(atX: relX) else { return nil }
-        // Find the TrendPoint whose date is closest.
-        return points.min(by: {
-            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
-        })
+        return nearestTrendPoint(to: date, in: points)
     }
 
     /// The days the x-axis marks, so the marks and their label format agree about which days are shown.
@@ -295,6 +308,13 @@ public struct TrendChart: View {
     public var body: some View {
         // Resolve against current data so the marker and readout never refer to a removed date.
         let currentSelection = selectedPoint.flatMap { selected in points.first { $0.date == selected.date } }
+        // All marks share these styles. Resolve them once per chart update instead of rebuilding
+        // the same gradient for every vertex; segment identities and full-resolution data stay intact.
+        let stops = gradient.toStops()
+        let areaFill = LinearGradient(
+            colors: [StrandPalette.sample(stops: stops, at: unit(averageValue)).opacity(0.28), .clear],
+            startPoint: .top, endPoint: .bottom)
+        let lineStroke = valueGradient
         VStack(alignment: .leading, spacing: 8) {
         if largeSelection {
             let point = currentSelection ?? points.last
@@ -320,7 +340,7 @@ public struct TrendChart: View {
                         x: .value("Date", p.date),
                         y: .value("Value", p.value)
                     )
-                    .foregroundStyle(valueGradient)
+                    .foregroundStyle(lineStroke)
                     .cornerRadius(min(2, max(0, CGFloat(p.value / max(1, plotYDomain.upperBound)) * height * 0.2)))
                     .opacity(holdingBar && currentSelection != nil && currentSelection?.date != p.date ? 0.3 : 1)
                     .annotation(position: .top, spacing: 3) {
@@ -345,15 +365,7 @@ public struct TrendChart: View {
                             series: .value("Segment", p.segment)
                         )
                         .interpolationMethod(.catmullRom)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    StrandPalette.sample(stops: gradient.toStops(), at: unit(averageValue)).opacity(0.28),
-                                    Color.clear
-                                ],
-                                startPoint: .top, endPoint: .bottom
-                            )
-                        )
+                        .foregroundStyle(areaFill)
                     }
                 }
                 ForEach(displayPoints) { p in
@@ -364,7 +376,7 @@ public struct TrendChart: View {
                     )
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                    .foregroundStyle(valueGradient)
+                    .foregroundStyle(lineStroke)
                 }
                 // 18pt dots are invisible on dense series (e.g. a 365-day year) but still cost the
                 // GPU a mark each — hide them past a threshold; the line carries the data there. The gate
@@ -376,7 +388,7 @@ public struct TrendChart: View {
                             y: .value("Value", p.value)
                         )
                         .symbolSize(18)
-                        .foregroundStyle(StrandPalette.sample(stops: gradient.toStops(), at: unit(p.value)))
+                        .foregroundStyle(StrandPalette.sample(stops: stops, at: unit(p.value)))
                     }
                 }
             }

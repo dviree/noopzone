@@ -49,6 +49,10 @@ struct LiveWorkoutView: View {
                     AnyView(header),
                     AnyView(timeBlock),
                     AnyView(heartRateBlock),
+                    // Zone training: a leaf observing the coach itself, so its 1 Hz time-in-zone tick
+                    // re-renders this card, not the hero above it. Renders nothing in an ordinary workout.
+                    AnyView(TargetZoneCoachCard(coach: model.targetZoneCoach, behavior: model.behavior,
+                                                bpm: model.bpm)),
                     AnyView(effortGauge),
                     AnyView(zoneSection),
                     AnyView(statsGrid),
@@ -180,16 +184,9 @@ struct LiveWorkoutView: View {
             Text("HEART RATE")
                 .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                 .foregroundStyle(StrandPalette.textSecondary)
-            if let bpm = model.bpm {
-                CountUpText(value: Double(bpm),
-                            format: { "\(Int($0.rounded()))" },
-                            font: StrandFont.rounded(72, weight: .semibold),
-                            color: tint)
-            } else {
-                Text("—")
-                    .font(StrandFont.rounded(72, weight: .semibold))
-                    .foregroundStyle(tint)
-            }
+            // In Zone training the number takes the coach's colour (green in the zone, red above, blue
+            // below); otherwise the zone colour as before. A leaf, so the coach's ticks re-render only it.
+            ZoneTintedHeartRate(coach: model.targetZoneCoach, bpm: model.bpm, fallbackTint: tint)
             Text("bpm")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
@@ -447,7 +444,9 @@ struct LiveWorkoutView: View {
         ActiveWorkoutClock.clock(Int(seconds))
     }
 
-    private static func zoneName(_ zone: Int) -> String {
+    /// The short name of a zone ("Fat burn", "Aerobic", …). Internal so the Zone training picker labels
+    /// zones with the same words as this screen.
+    static func zoneName(_ zone: Int) -> String {
         switch zone {
         case 1: return String(localized: "Recovery")
         case 2: return String(localized: "Fat burn")
@@ -490,8 +489,9 @@ private extension View {
 /// no longer observes `LiveState`), so an incoming sensor / R-R packet re-renders only this row, not the
 /// HR hero / effort gauge / zone rail above. The gate, layout and `staggeredAppear(index: 5)` are
 /// preserved verbatim (index bumped to 7 — 6 after the glanceable layout split TIME / HR / Effort / zone
-/// into separate stagger slots, then 7 after the live distance/pace card #1195 took the slot before it),
-/// so the rendered output matches the previous inline code.
+/// into separate stagger slots, then 7 after the live distance/pace card #1195 took the slot before it,
+/// then 8 after the target-zone coaching card took a slot under the heart rate), so the rendered output
+/// matches the previous inline code.
 private struct SensorRowIfPresent: View {
     @EnvironmentObject private var live: LiveState
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -520,7 +520,7 @@ private struct SensorRowIfPresent: View {
                     }
                 }
             }
-            .staggeredAppear(index: 7)
+            .staggeredAppear(index: 8)
         }
     }
 
@@ -537,6 +537,199 @@ private struct SensorRowIfPresent: View {
                 .lineLimit(1).minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Zone training on the active-workout screen: the live bpm, the zone's bpm interval, whether to go harder
+/// or ease off, and the time spent in the zone, with a picker to switch zone (or turn coaching Off) mid-way.
+///
+/// Every number here comes from one place each, so the card cannot disagree with the rest of the screen:
+/// the bpm is the same smoothed `AppModel.bpm` the hero shows, the interval is the coach's config, which
+/// is built from the same `HRZoneSet` band the zone rail prints, and the status is the coach's committed
+/// state — the one that drives the strap — never re-derived from the bpm here.
+///
+/// The status is the coach's HELD verdict, not the instantaneous zone, and the two can differ by design at
+/// an edge: within the hysteresis margin (a reading 1–3 bpm under Zone 2) the card still reads ZONE 2 while
+/// the rail shows Zone 1. That is the point of the margin — the strap is not told to speed up for a reading
+/// that is hovering on the line — and the card's job is to say what the strap is saying.
+private struct TargetZoneCoachCard: View {
+    @ObservedObject var coach: TargetZoneCoachRunner
+    @ObservedObject var behavior: BehaviorStore
+    let bpm: Int?
+
+    var body: some View {
+        // Only a Zone training workout carries this card; picking Off on it ends the coaching and removes it.
+        if behavior.targetZone != 0 || coach.isActive { card }
+    }
+
+    private var card: some View {
+        let tint = statusTint
+        return NoopCard(padding: NoopMetrics.cardInnerPadding, tint: coach.isActive ? tint : StrandPalette.effortColor) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack {
+                    Group {
+                        if coach.plan != nil { Text("4×4 INTERVALS") } else { Text("TARGET ZONE") }
+                    }
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                    Spacer()
+                    if coach.isActive {
+                        Text(statusLabel)
+                            .font(StrandFont.captionNumber)
+                            .foregroundStyle(tint)
+                            .padding(.horizontal, NoopMetrics.space2)
+                            .padding(.vertical, NoopMetrics.space1)
+                            .background(tint.opacity(0.12), in: Capsule())
+                            .accessibilityLabel(Text(statusLabel))
+                    }
+                }
+                if let plan = coach.plan {
+                    // A 4×4 keeps its own zone: no picker, the phase and its countdown instead.
+                    intervalRow(plan)
+                } else {
+                    SegmentedPillControl([0] + TargetZonePrefs.selectableZones, selection: $behavior.targetZone,
+                                         fillsAvailableWidth: true) { TargetZonePrefs.label($0) }
+                        .accessibilityLabel(Text("Target-zone coaching"))
+                }
+                if let zone = coach.zone, let config = coach.config {
+                    HStack(spacing: 0) {
+                        stat(String(localized: "BPM"), bpm.map { "\($0)" } ?? "—", tint: tint)
+                        statDivider
+                        stat(String(localized: "Zone \(zone)").uppercased(),
+                             "\(Int(config.lowerBpm))-\(Int(config.upperBpm))",
+                             tint: StrandPalette.hrZoneColor(zone))
+                        statDivider
+                        stat(String(localized: "IN ZONE"), ActiveWorkoutClock.clock(coach.inZoneSeconds),
+                             tint: StrandPalette.textPrimary)
+                    }
+                } else if behavior.targetZone != 0 {
+                    Text("Set a max heart rate in Settings to coach toward a zone.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Pick a zone and the strap taps when you drift out of it, so you don't have to watch the screen.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private var statusLabel: String { TargetZoneStatusStyle.label(coach) }
+    private var statusTint: Color { TargetZoneStatusStyle.tint(coach) }
+
+    /// The interval phase line: which block, and how long is left of it.
+    @ViewBuilder
+    private func intervalRow(_ plan: IntervalPlan) -> some View {
+        let phaseTitle: String = {
+            if coach.intervalsDone { return String(localized: "DONE") }
+            guard let phase = coach.phase else { return "" }
+            switch phase.kind {
+            case .work: return String(localized: "INTERVAL \(phase.round)/\(plan.rounds)")
+            case .rest: return String(localized: "REST \(phase.round)/\(plan.rounds - 1)")
+            }
+        }()
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(phaseTitle)
+                    .font(StrandFont.headline)
+                    .foregroundStyle(statusTint)
+                Spacer()
+                if !coach.intervalsDone {
+                    // Time left in THIS block, the number that matters mid-interval.
+                    Text(ActiveWorkoutClock.clock(coach.phaseRemaining))
+                        .font(StrandFont.number(40)).monospacedDigit()
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .contentTransition(.numericText())
+                }
+            }
+            if !coach.intervalsDone {
+                // And the whole session, so "how long until I'm done" needs no arithmetic.
+                HStack {
+                    Text("TOTAL LEFT")
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                    Spacer()
+                    Text(ActiveWorkoutClock.clock(coach.sessionRemaining))
+                        .font(StrandFont.captionNumber).monospacedDigit()
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .contentTransition(.numericText())
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func stat(_ title: String, _ value: String, tint: Color) -> some View {
+        VStack(spacing: NoopMetrics.space1) {
+            Text(title)
+                .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textSecondary)
+            Text(value)
+                .font(StrandFont.number(26)).monospacedDigit()
+                .foregroundStyle(tint)
+                .lineLimit(1).minimumScaleFactor(0.6)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var statDivider: some View {
+        Rectangle().fill(StrandPalette.hairline).frame(width: 1, height: 48)
+    }
+}
+
+/// The ONE place a Zone training status becomes words and a colour, read by both the coaching card and the
+/// hero heart rate, so the two can never disagree. Colours: green in the zone, red above it (ease off),
+/// blue below it (push), the calm rest colour during an interval rest, grey with no reading.
+private enum TargetZoneStatusStyle {
+    @MainActor
+    static func label(_ coach: TargetZoneCoachRunner) -> String {
+        if coach.plan != nil {
+            if coach.intervalsDone { return String(localized: "Done") }
+            if coach.phase?.kind == .rest { return String(localized: "Rest") }
+        }
+        guard coach.hasReading else { return String(localized: "No heart rate") }
+        switch coach.state {
+        case .below: return String(localized: "Increase")
+        case .inZone: return coach.zone.map { String(localized: "Zone \($0)").uppercased() } ?? ""
+        case .above: return String(localized: "Decrease")
+        case .none: return String(localized: "Checking")
+        }
+    }
+
+    @MainActor
+    static func tint(_ coach: TargetZoneCoachRunner) -> Color {
+        if coach.plan != nil, coach.intervalsDone || coach.phase?.kind == .rest {
+            return StrandPalette.restColor
+        }
+        guard coach.hasReading, let state = coach.state else { return StrandPalette.textSecondary }
+        switch state {
+        case .below: return StrandPalette.restBright
+        case .inZone: return StrandPalette.statusPositive
+        case .above: return StrandPalette.statusCritical
+        }
+    }
+}
+
+/// The hero heart-rate number. During Zone training it takes `TargetZoneStatusStyle.tint`; otherwise the
+/// zone colour the hero always used. Observes the coach itself so only this number re-renders on its ticks.
+private struct ZoneTintedHeartRate: View {
+    @ObservedObject var coach: TargetZoneCoachRunner
+    let bpm: Int?
+    let fallbackTint: Color
+
+    var body: some View {
+        let tint = coach.isActive ? TargetZoneStatusStyle.tint(coach) : fallbackTint
+        if let bpm {
+            CountUpText(value: Double(bpm),
+                        format: { "\(Int($0.rounded()))" },
+                        font: StrandFont.rounded(72, weight: .semibold),
+                        color: tint)
+        } else {
+            Text("—")
+                .font(StrandFont.rounded(72, weight: .semibold))
+                .foregroundStyle(tint)
+        }
     }
 }
 

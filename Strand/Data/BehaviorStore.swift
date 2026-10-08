@@ -21,6 +21,21 @@ final class BehaviorStore: ObservableObject {
 
     // MARK: HR-zone haptic coaching (during a live session)
     @Published var zoneCoaching: Bool { didSet { d.set(zoneCoaching, forKey: K.zoneCoaching) } }
+    /// The zone (2, 3 or 4) the CURRENT Zone training workout coaches toward, or 0 = off. Set by
+    /// `AppModel.startWorkout(sport:targetZone:)`, changeable from the workout screen's card, and cleared when
+    /// the workout ends; persisted only so a workout rehydrated after an OS kill keeps coaching. Read through
+    /// `TargetZonePrefs.resolve` so a stray stored value can never select a zone the coach does not offer.
+    @Published var targetZone: Int { didSet { d.set(targetZone, forKey: K.targetZone) } }
+    /// True when the current Zone training workout is a 4×4 interval session (`IntervalPlan.fourByFour`)
+    /// rather than steady coaching. Same lifecycle as `targetZone`: set at start, cleared at the end.
+    @Published var targetZoneIntervals: Bool {
+        didSet { d.set(targetZoneIntervals, forKey: K.targetZoneIntervals) }
+    }
+    /// Mirror each Zone training cue as an iPhone notification (replaced in place, never stacked). Default ON:
+    /// it only matters during a Zone training workout, which is itself opt-in.
+    @Published var targetZoneNotifications: Bool {
+        didSet { d.set(targetZoneNotifications, forKey: K.targetZoneNotifications) }
+    }
 
     // MARK: Haptic biofeedback — Stress check-ins (L3)
     //
@@ -65,6 +80,9 @@ final class BehaviorStore: ObservableObject {
         static let wristOffShortcut = "behavior.wristOffShortcut"
         static let wristOnShortcut = "behavior.wristOnShortcut"
         static let zoneCoaching = "behavior.zoneCoaching"
+        static let targetZone = "behavior.targetZone"
+        static let targetZoneNotifications = "behavior.targetZoneNotifications"
+        static let targetZoneIntervals = "behavior.targetZoneIntervals"
         // Haptic biofeedback L3 — keys MATCH BiofeedbackPrefs (one source of truth, two readers).
         static let stressCheckIn = "biofeedback.stressCheckIn"
         static let stressAutoNudge = "biofeedback.stressAutoNudge"
@@ -89,6 +107,9 @@ final class BehaviorStore: ObservableObject {
         wristOffShortcut = d.string(forKey: K.wristOffShortcut) ?? ""
         wristOnShortcut = d.string(forKey: K.wristOnShortcut) ?? ""
         zoneCoaching = d.object(forKey: K.zoneCoaching) as? Bool ?? false
+        targetZone = TargetZonePrefs.resolve(d.object(forKey: K.targetZone) as? Int ?? 0)
+        targetZoneNotifications = d.object(forKey: K.targetZoneNotifications) as? Bool ?? true
+        targetZoneIntervals = d.object(forKey: K.targetZoneIntervals) as? Bool ?? false
         stressCheckIn = d.object(forKey: K.stressCheckIn) as? Bool ?? false
         stressAutoNudge = d.object(forKey: K.stressAutoNudge) as? Bool ?? false
         stressQuietHours = d.object(forKey: K.stressQuietHours) as? Bool ?? true

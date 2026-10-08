@@ -424,6 +424,7 @@ object Metrics {
     val dialogScrollableMaxHeight = 560.dp
     val divider = 1.dp
     val compactChartHeight = chartHeight - 90.dp
+    val chartAxisLabelWidth = 40.dp
     val selectorTopUp = sectionGap - screenRowSpacing
     val iconButton = 36.dp
     val iconSmall = 18.dp
@@ -522,14 +523,16 @@ object NoopType {
 
 /** Build the Material3 colour scheme from a token set. Dark/light differ only in the builder used
  *  (which sets sensible defaults for the slots we don't override); the NOOP surfaces are all driven
- *  by `Palette.*` directly, so this only feeds Material components (text fields, switches, etc.). */
-private fun noopColorScheme(t: PaletteTokens, dark: Boolean): ColorScheme {
+ *  by `Palette.*` directly, so this only feeds Material components (text fields, switches, etc.).
+ *  Resolve chrome accents through Palette too, so these controls honor the live accent preference.
+ *  NoopTheme installs [t] as Palette.active before building this scheme. */
+internal fun noopColorScheme(t: PaletteTokens, dark: Boolean): ColorScheme {
     val base = if (dark) darkColorScheme() else lightColorScheme()
     return base.copy(
-        primary = t.accent,
+        primary = Palette.accent,
         onPrimary = if (dark) t.surfaceBase else t.goldDeepText,
-        primaryContainer = t.accentMuted,
-        onPrimaryContainer = if (dark) t.accentHover else t.accent,
+        primaryContainer = Palette.accentMuted,
+        onPrimaryContainer = if (dark) Palette.accentHover else Palette.accent,
         secondary = t.metricPurple,
         onSecondary = if (dark) t.surfaceBase else Color(0xFFFFFFFF),
         background = t.surfaceBase,

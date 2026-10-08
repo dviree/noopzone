@@ -618,11 +618,19 @@ struct WorkoutsView: View {
     /// Equal-width primary actions share the same content width as every card below them.
     /// #459 / PERF: the live-workout button is `WorkoutStartControl`, a leaf that owns `AppModel` itself
     /// so this screen doesn't have to — see the comment on `profile`/`intelligence` above.
+    ///
+    /// Zone training sits under the two as its own full-width action: a workout that coaches toward one
+    /// heart-rate zone, started by picking the zone first. `ZoneTrainingStartControl` is a live-observing
+    /// leaf for the same reason `WorkoutStartControl` is.
     private var workoutActionRow: some View {
-        HStack(spacing: NoopMetrics.rowSpacing) {
-            WorkoutStartControl()
-                .frame(maxWidth: .infinity)
-            addWorkoutButton
+        VStack(spacing: NoopMetrics.rowSpacing) {
+            HStack(spacing: NoopMetrics.rowSpacing) {
+                WorkoutStartControl()
+                    .frame(maxWidth: .infinity)
+                addWorkoutButton
+                    .frame(maxWidth: .infinity)
+            }
+            ZoneTrainingStartControl()
                 .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity)

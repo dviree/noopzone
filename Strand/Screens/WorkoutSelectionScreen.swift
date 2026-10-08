@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandAnalytics
 
 // MARK: - Workout selection browser
 //
@@ -158,6 +159,137 @@ struct WorkoutSelectionScreen: View {
         RecentSportsPrefs.recordSelection(name)
         onStart(name)
         dismiss()
+    }
+}
+
+// MARK: - Zone training: pick the zone
+
+/// Zone training's only step: one card per selectable zone (2, 3, 4), each with its name and the
+/// user's own bpm interval — the same `TargetZoneCoach.Config` band the coach will hold them to, so the
+/// number on the card is the number the strap enforces — plus a 4×4 interval session in Zone 4. Choosing
+/// a card reports it (the caller starts the workout) and dismisses.
+struct ZoneTrainingSheet: View {
+    let zoneSet: HRZoneSet
+    let onPick: (_ zone: Int, _ intervals: Bool) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: NoopMetrics.space5) {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        Text("Zone training")
+                            .font(StrandFont.rounded(34, weight: .bold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("During a recorded workout, the strap taps twice when you drop below the zone, three times when you go above it, and once when you're back in. Uses your heart-rate zones from Settings.")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+
+                    VStack(spacing: NoopMetrics.space4) {
+                        ForEach(TargetZonePrefs.selectableZones, id: \.self) { zone in
+                            zoneCard(zone, config: TargetZoneCoach.Config.forZone(zone, in: zoneSet))
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        Text("INTERVALS")
+                            .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                        intervalCard(config: TargetZoneCoach.Config.forZone(IntervalPlan.fourByFourZone,
+                                                                           in: zoneSet))
+                    }
+
+                    if TargetZonePrefs.selectableZones.allSatisfy({ TargetZoneCoach.Config.forZone($0, in: zoneSet) == nil }) {
+                        Text("Set a max heart rate in Settings to coach toward a zone.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarning)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, NoopMetrics.space5)
+                .padding(.top, NoopMetrics.space2)
+                .padding(.bottom, NoopMetrics.space10)
+            }
+            .background {
+                StrandPalette.surfaceBase.ignoresSafeArea()
+            }
+            .navigationBarTitleDisplayModeCompat()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailingCompat) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .frame(width: 34, height: 34)
+                            .contentShape(Circle())
+                    }
+                    .nativeLiquidGlassWorkoutSelectionControl()
+                    .accessibilityLabel(Text("Close"))
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 480, minHeight: 560)
+        #endif
+    }
+
+    private func zoneCard(_ zone: Int, config: TargetZoneCoach.Config?) -> some View {
+        choiceCard(title: String(localized: "Zone \(zone)"), subtitle: LiveWorkoutView.zoneName(zone),
+                   color: StrandPalette.hrZoneColor(zone), config: config) { onPick(zone, false) }
+    }
+
+    /// The 4×4 session: Zone 4 work blocks with silent rests (`IntervalPlan.fourByFour`).
+    private func intervalCard(config: TargetZoneCoach.Config?) -> some View {
+        let plan = IntervalPlan.fourByFour
+        let zone = IntervalPlan.fourByFourZone
+        return choiceCard(
+            title: String(localized: "4×4 intervals"),
+            subtitle: String(localized: "Zone \(zone) · \(plan.rounds) × \(Int(plan.workSeconds / 60)) min, \(Int(plan.restSeconds / 60)) min rest"),
+            color: StrandPalette.hrZoneColor(zone), config: config) { onPick(zone, true) }
+    }
+
+    private func choiceCard(title: String, subtitle: String, color: Color, config: TargetZoneCoach.Config?,
+                            action: @escaping () -> Void) -> some View {
+        let range = config.map { "\(Int($0.lowerBpm))-\(Int($0.upperBpm)) bpm" }
+        return Button {
+            action()
+            dismiss()
+        } label: {
+            NoopCard(padding: NoopMetrics.cardInnerPadding, tint: color) {
+                HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                    Circle().fill(color).frame(width: 12, height: 12)
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        Text(title)
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(subtitle)
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: NoopMetrics.space2)
+                    if let range {
+                        Text(verbatim: range)
+                            .font(StrandFont.number(22)).monospacedDigit()
+                            .foregroundStyle(color)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(config == nil)
+        .opacity(config == nil ? 0.5 : 1)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text([title, subtitle, range].compactMap { $0 }.joined(separator: ", ")))
+        .accessibilityHint(Text("Double tap to start"))
     }
 }
 
