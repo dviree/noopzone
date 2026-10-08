@@ -90,12 +90,15 @@ struct BatteryLogView: View {
         }
     }
 
-    /// "82% → 74%  −8%  (−6.1%/h)"; a dash where a reading is missing. Numbers and symbols only.
+    /// "82% → 74%  −8%  (−6.1%/h)"; "+" when the level rose (charging during the workout); a dash where a
+    /// reading is missing. Numbers and symbols only.
     static func summary(start: Double?, end: Double?, used: Double?, perHour: Double?) -> String {
         func pct(_ v: Double?) -> String { v.map { "\(Int($0.rounded()))%" } ?? "—" }
+        // `used` is start − end, so a positive value is a drop.
+        func sign(_ v: Double) -> String { v < 0 ? "+" : "−" }
         var s = "\(pct(start)) → \(pct(end))"
-        if let used { s += String(format: "  −%.0f%%", used) }
-        if let perHour { s += String(format: "  (−%.1f%%/h)", perHour) }
+        if let used { s += "  " + sign(used) + String(format: "%.0f%%", abs(used)) }
+        if let perHour { s += "  (" + sign(perHour) + String(format: "%.1f%%/h", abs(perHour)) + ")" }
         return s
     }
 

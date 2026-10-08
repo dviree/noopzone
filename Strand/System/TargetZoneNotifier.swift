@@ -18,6 +18,17 @@ enum TargetZoneNotifier {
     /// The one identifier every target-zone notification is posted under (replace-in-place).
     static let identifier = "target-zone-coach"
 
+    /// Bumped by `clear()`. A post adds its request from an asynchronous settings callback, so one issued
+    /// just before a clear could otherwise land after it and outlive the session; it checks this first.
+    private static let generation = Generation()
+
+    private final class Generation: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = 0
+        var current: Int { lock.lock(); defer { lock.unlock() }; return value }
+        func bump() { lock.lock(); value += 1; lock.unlock() }
+    }
+
     /// Title + body for a feedback toward `zone`. NOOP's own wording.
     static func copy(_ feedback: TargetZoneCoach.Feedback, zone: Int) -> (title: String, body: String) {
         switch feedback {
@@ -110,10 +121,12 @@ enum TargetZoneNotifier {
     static func post(_ feedback: TargetZoneCoach.Feedback, zone: Int) {
         #if os(iOS)
         let text = Self.copy(feedback, zone: zone)
+        let posted = generation.current
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized
-                    || settings.authorizationStatus == .provisional else { return }
+                    || settings.authorizationStatus == .provisional,
+                  generation.current == posted else { return }
             let content = UNMutableNotificationContent()
             content.title = text.title
             content.body = text.body
@@ -132,10 +145,12 @@ enum TargetZoneNotifier {
         #if os(iOS)
         let text = intervalCopy(cue, zone: zone, plan: plan)
         let sound = ZoneVoiceCues.readySoundName(for: intervalVoicePhrase(for: cue)) ?? intervalSoundName(for: cue)
+        let posted = generation.current
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized
-                    || settings.authorizationStatus == .provisional else { return }
+                    || settings.authorizationStatus == .provisional,
+                  generation.current == posted else { return }
             let content = UNMutableNotificationContent()
             content.title = text.title
             content.body = text.body
@@ -150,6 +165,7 @@ enum TargetZoneNotifier {
     /// outlive the session it was about.
     static func clear() {
         #if os(iOS)
+        generation.bump()
         let center = UNUserNotificationCenter.current()
         center.removeDeliveredNotifications(withIdentifiers: [identifier])
         center.removePendingNotificationRequests(withIdentifiers: [identifier])

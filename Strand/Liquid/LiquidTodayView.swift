@@ -2616,8 +2616,6 @@ private struct LiquidLiveHR: View {
         }
     }
 
-    /// Uses the thread renderer's ten-point inset and equal-distance sample positions, so the
-    /// readout points to the value actually drawn under the finger even for a sparse banked trace.
     /// Take or release this card's realtime-HR arm, only on a change, so starts and stops always balance.
     private func setRealtime(_ on: Bool) {
         guard on != holdsRealtime else { return }
@@ -2625,6 +2623,8 @@ private struct LiquidLiveHR: View {
         if on { model.startRealtimeHR() } else { model.stopRealtimeHR() }
     }
 
+    /// Uses the thread renderer's ten-point inset and equal-distance sample positions, so the
+    /// readout points to the value actually drawn under the finger even for a sparse banked trace.
     private var scrubReadout: some View {
         GeometryReader { geometry in
             if let scrubX, series.count >= 2 {

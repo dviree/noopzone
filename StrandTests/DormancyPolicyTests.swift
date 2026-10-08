@@ -20,6 +20,19 @@ final class DormancyPolicyTests: XCTestCase {
                        "off restores the always-connected behaviour")
     }
 
+    func testTheSyncCountsAsFinishedOnlyOnceItHasSettled() {
+        let opened: TimeInterval = 1_000
+        func done(_ backfilling: Bool, _ synced: TimeInterval?, at now: TimeInterval) -> Bool {
+            DormancyPolicy.syncFinished(backfilling: backfilling, lastSyncedAt: synced, openedAt: opened, now: now)
+        }
+        XCTAssertFalse(done(false, nil, at: 1_100), "no sync completed yet")
+        XCTAssertFalse(done(false, 900, at: 1_100), "the last completed sync is from before the open")
+        XCTAssertFalse(done(true, 1_050, at: 1_100), "a slice completed but the next one is running")
+        XCTAssertFalse(done(false, 1_050, at: 1_052),
+                       "between two slices of one offload, and before the debounced push has started")
+        XCTAssertTrue(done(false, 1_050, at: 1_050 + DormancyPolicy.syncSettleSeconds))
+    }
+
     func testTheSettingDefaultsOn() {
         let defaults = UserDefaults.standard
         let saved = defaults.object(forKey: DormancyPolicy.enabledKey)
@@ -62,5 +75,22 @@ final class DormancyPolicyTests: XCTestCase {
         manager.setDormant(false)
         XCTAssertFalse(manager.dormant)
         XCTAssertFalse(defaults.bool(forKey: BLEManager.dormantKey))
+    }
+
+    /// A strap the user disconnected before NOOP slept is not reconnected when NOOP wakes.
+    func testWakingKeepsAUserDisconnect() {
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: BLEManager.dormantKey)
+        defer { defaults.set(saved, forKey: BLEManager.dormantKey) }
+        defaults.removeObject(forKey: BLEManager.dormantKey)
+
+        let collector = Collector(store: NullStore(), deviceId: "test-strap", log: { _ in }, now: { 1_750_000_000 })
+        let live = LiveState()
+        let manager = BLEManager(state: live, collector: collector)
+        manager.disconnect()
+        manager.setDormant(true)
+        manager.setDormant(false)
+        XCTAssertTrue(live.log.contains { $0.contains("the strap stays disconnected") })
+        XCTAssertFalse(live.log.contains { $0.contains("asking to reconnect") })
     }
 }

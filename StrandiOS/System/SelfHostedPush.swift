@@ -253,7 +253,7 @@ final class SelfHostedPushClient: ObservableObject {
                                                                window: window, records: records) {
                 try await post(batch, n)
             }
-            for (day, hash) in hashes { progress.setDayHash(hash, n.namespace, deviceId, stream, day) }
+            progress.replaceDayHashes(hashes, n.namespace, deviceId, stream)
             progress.addDevice(deviceId, n.namespace, stream)
         }
     }
@@ -319,8 +319,16 @@ final class SelfHostedPushClient: ObservableObject {
             store["h|\(ns)|\(device)|\(stream.rawValue)|\(day)"]
         }
 
-        func setDayHash(_ hash: String, _ ns: String, _ device: String, _ stream: PushStream, _ day: String) {
-            store["h|\(ns)|\(device)|\(stream.rawValue)|\(day)"] = hash
+        /// Store one run's per-day hashes (the whole window) in a single write, dropping the days that have
+        /// left the window so the store does not grow by a key per day forever.
+        func replaceDayHashes(_ hashes: [String: String], _ ns: String, _ device: String, _ stream: PushStream) {
+            let prefix = "h|\(ns)|\(device)|\(stream.rawValue)|"
+            var all = store
+            for key in all.keys where key.hasPrefix(prefix) && hashes[String(key.dropFirst(prefix.count))] == nil {
+                all[key] = nil
+            }
+            for (day, hash) in hashes { all[prefix + day] = hash }
+            store = all
         }
 
         func devices(_ ns: String, _ stream: PushStream) -> [String] {

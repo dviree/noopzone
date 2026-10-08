@@ -17,6 +17,10 @@ struct WorkoutBatteryEntry: Codable, Identifiable, Equatable {
     var strapEnd: Double?
     var phoneStart: Double?
     var phoneEnd: Double?
+    /// The last moment the open session was seen running, and the phone level then. Used to close a
+    /// session the app was killed in, so it ends where it was last seen, not at the next launch.
+    var lastSeen: Date?
+    var phoneLast: Double?
 
     var duration: TimeInterval { (end ?? Date()).timeIntervalSince(start) }
 
@@ -61,8 +65,8 @@ final class WorkoutBatteryLog: ObservableObject {
     func attach(model: AppModel) {
         self.model = model
         UIDevice.current.isBatteryMonitoringEnabled = true
-        // A session left open by a relaunch with no workout to resume is closed with what it has.
-        if model.activeWorkout == nil, pending != nil { finish() }
+        // A session left open by a relaunch with no workout to resume is closed where it was last seen.
+        if model.activeWorkout == nil, pending != nil { finish(orphaned: true) }
         model.$activeWorkout
             .map { $0 != nil }
             .removeDuplicates()
@@ -90,9 +94,10 @@ final class WorkoutBatteryLog: ObservableObject {
 
     private func begin() {
         guard pending == nil, let model, let workout = model.activeWorkout else { return }
+        let phone = Self.phonePct()
         pending = WorkoutBatteryEntry(start: workout.start, end: nil, label: Self.label(model),
                                       strapStart: model.live.batteryPct, strapEnd: model.live.batteryPct,
-                                      phoneStart: Self.phonePct(), phoneEnd: nil)
+                                      phoneStart: phone, phoneEnd: nil, lastSeen: Date(), phoneLast: phone)
         Self.save(pending, Self.pendingKey)
     }
 
@@ -100,15 +105,24 @@ final class WorkoutBatteryLog: ObservableObject {
         guard var p = pending else { return }
         if p.strapStart == nil { p.strapStart = pct }
         p.strapEnd = pct
+        p.lastSeen = Date()
+        if let phone = Self.phonePct() { p.phoneLast = phone }
         pending = p
         Self.save(p, Self.pendingKey)
     }
 
-    private func finish() {
+    private func finish(orphaned: Bool = false) {
         guard var p = pending else { return }
-        p.end = Date()
-        p.phoneEnd = Self.phonePct()
-        if let pct = model?.live.batteryPct { p.strapEnd = pct }
+        if orphaned {
+            // The workout ended while the app was not running: what is true now (the time, a phone that has
+            // charged since) is not what the workout cost.
+            p.end = p.lastSeen ?? p.start
+            p.phoneEnd = p.phoneLast
+        } else {
+            p.end = Date()
+            p.phoneEnd = Self.phonePct()
+            if let pct = model?.live.batteryPct { p.strapEnd = pct }
+        }
         entries.insert(p, at: 0)
         if entries.count > Self.maxEntries { entries.removeLast(entries.count - Self.maxEntries) }
         pending = nil

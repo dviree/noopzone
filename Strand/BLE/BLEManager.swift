@@ -1328,6 +1328,10 @@ public final class BLEManager: NSObject, ObservableObject {
     public private(set) var dormant = UserDefaults.standard.bool(forKey: BLEManager.dormantKey)
     static let dormantKey = "noop.ble.dormant"
 
+    /// Whether waking from `dormant` reconnects: false when the user had disconnected the strap before
+    /// NOOP slept. In memory only, like `intentionalDisconnect`, which a relaunch also clears.
+    private var reconnectOnWake = true
+
     /// #1635: one `ScanAdvertisementSummary` line per SCAN, not per process — the question it answers
     /// is only visible by comparing a scan before the strap was put in pairing mode against one after,
     /// so `startScan` reopens it.
@@ -2089,6 +2093,8 @@ public final class BLEManager: NSObject, ObservableObject {
         if on {
             log("Asleep: NOOP is in the background with no workout running — releasing the strap; "
                 + "no scanning or reconnecting until NOOP is opened")
+            // A strap the user had disconnected stays disconnected on wake; sleeping must not undo that.
+            reconnectOnWake = !intentionalDisconnect
             intentionalDisconnect = true
             cancelScanFallback()
             standingConnectAt = nil
@@ -2096,9 +2102,12 @@ public final class BLEManager: NSObject, ObservableObject {
                 central.cancelPeripheralConnection(p)   // a live OR a pending (standing) connect
             }
             central.stopScan()
-        } else {
-            log("Awake: NOOP is open again — reconnecting to the strap")
+        } else if reconnectOnWake {
+            // The connect gate logs on its own if it then declines (e.g. another device is active).
+            log("Awake: NOOP is open again — asking to reconnect the strap")
             connectFromSystem()
+        } else {
+            log("Awake: NOOP is open again — the strap stays disconnected, as it was before NOOP slept")
         }
     }
 
@@ -6485,6 +6494,17 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         router.family = selectedModel.deviceFamily
         router.deviceId = deviceId   // #1706: attribute this connection's alarm readback
         configureCollectorFamily()
+        if dormant {
+            // Relaunched in the background while asleep: let the inherited link go rather than resume it.
+            // Before the bond flags below are seeded: cancelling a pending (unconnected) restored connect
+            // fires no didDisconnect to clear them, so seeding first would leave a released strap "bonded".
+            state.connected = false
+            intentionalDisconnect = true
+            log("Restored peripheral \(p.identifier) while asleep — releasing it until NOOP is opened")
+            central.cancelPeripheralConnection(p)
+            Task { @MainActor in await bootstrapStore() }
+            return
+        }
         // Collection only runs post-bond, so a restored link was already bonded;
         // seed those flags now. `didWriteValueFor` won't re-fire on its own.
         state.bonded = true
@@ -6509,14 +6529,6 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             // there would be skipped for a restored link — the very path a radio toggle and a relaunch take.
             // After `bootstrapStore`, because it is what creates `registryStore`.
             if let p = self.peripheral ?? self.restoredPeripheral { self.adoptSourceIdentity(for: p) }
-        }
-        if dormant {
-            // Relaunched in the background while asleep: let the inherited link go rather than resume it.
-            state.connected = false
-            intentionalDisconnect = true
-            log("Restored peripheral \(p.identifier) while asleep — releasing it until NOOP is opened")
-            central.cancelPeripheralConnection(p)
-            return
         }
         if p.state == .connected {
             state.connected = true

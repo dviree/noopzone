@@ -124,7 +124,8 @@ final class BackgroundDormancy {
     }
 
     private func syncDone(_ model: AppModel) -> Bool {
-        !model.live.backfilling && (model.live.lastSyncedAt ?? 0) >= openedAt
+        DormancyPolicy.syncFinished(backfilling: model.live.backfilling, lastSyncedAt: model.live.lastSyncedAt,
+                                    openedAt: openedAt, now: Date().timeIntervalSince1970)
     }
 
     private func sleepIfStillWanted() {
